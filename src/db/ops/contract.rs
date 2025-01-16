@@ -1,11 +1,5 @@
-use std::str::FromStr;
-use serde_json::value::RawValue;
 use crate::db::model::{ContractDbObj, DeployStatus};
-use sqlx::{Database, Decode, Encode, Sqlite, SqlitePool, Type};
-use sqlx::encode::IsNull;
-use sqlx::error::BoxDynError;
-use web3::types::{Address, Res};
-use crate::types::DbAddress;
+use sqlx::SqlitePool;
 
 pub async fn insert_contract_obj(
     conn: &SqlitePool,
@@ -31,37 +25,6 @@ pub async fn insert_contract_obj(
     .await?;
     Ok(res)
 }
-
-
-impl sqlx::Type<sqlx::Sqlite> for DeployStatus {
-    fn type_info() -> <Sqlite as sqlx::Database>::TypeInfo {
-        <String as sqlx::Type<Sqlite>>::type_info()
-    }
-    fn compatible(ty: &<Sqlite as sqlx::Database>::TypeInfo) -> bool {
-        <String as sqlx::Type<Sqlite>>::compatible(ty)
-    }
-}
-
-impl<'r, DB: Database> Decode<'r, DB> for DeployStatus
-where
-    &'r str: Decode<'r, DB>,
-{
-    fn decode(value: <DB as Database>::ValueRef<'r>) -> sqlx::Result<Self, BoxDynError> {
-        let value: &str = Decode::decode(value)?;
-        DeployStatus::from_str(value)
-            .map_err(Into::into)
-    }
-}
-
-impl<'q, DB: Database> Encode<'q, DB> for DeployStatus
-where
-    String: sqlx::Encode<'q, DB>,
-{
-    fn encode_by_ref(&self, buf: &mut DB::ArgumentBuffer<'q>) -> sqlx::Result<IsNull, BoxDynError> {
-        Encode::<DB>::encode(self.to_string(), buf)
-    }
-}
-
 
 pub async fn get_contract_by_id(
     conn: &SqlitePool,
@@ -94,12 +57,14 @@ pub async fn get_all_contracts_by_deploy_status_and_network(
     deploy_status: DeployStatus,
     network: String,
 ) -> Result<Vec<ContractDbObj>, sqlx::Error> {
-    let res = sqlx::query_as::<_, ContractDbObj>(r"
+    let res = sqlx::query_as::<_, ContractDbObj>(
+        r"
     SELECT * FROM contract
     WHERE deploy_status=$1
         AND network=$2
     ORDER BY deploy_requested ASC;
-        ")
+        ",
+    )
     .bind(deploy_status)
     .bind(network)
     .fetch_all(conn)

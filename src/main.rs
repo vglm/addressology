@@ -1,6 +1,7 @@
 mod api;
 mod cookie;
 mod db;
+mod deploy;
 mod email;
 mod error;
 mod fancy;
@@ -15,11 +16,16 @@ use crate::api::user;
 use crate::api::user::handle_greet;
 use crate::cookie::load_key_or_create;
 use crate::db::connection::create_sqlite_connection;
-use crate::db::ops::{get_all_contracts_by_deploy_status_and_network, get_by_address, get_contract_by_id, insert_fancy_obj, list_all, update_contract_data};
+use crate::db::model::{DeployStatus, UserDbObj};
+use crate::db::ops::{
+    get_all_contracts_by_deploy_status_and_network, get_contract_by_id, insert_fancy_obj, list_all,
+    update_contract_data,
+};
+use crate::deploy::handle_fancy_deploy;
 use crate::hash::compute_create3_command;
 use crate::solc::compile_solc;
 use crate::types::DbAddress;
-use actix_multipart::form::{json, MultipartFormConfig};
+use actix_multipart::form::MultipartFormConfig;
 use actix_multipart::MultipartError;
 use actix_session::config::CookieContentSecurity;
 use actix_session::storage::CookieSessionStore;
@@ -29,7 +35,7 @@ use actix_web::http::StatusCode;
 use actix_web::{
     web, App, HttpRequest, HttpResponse, HttpResponseBuilder, HttpServer, Responder, Scope,
 };
-use awc::{body, Client};
+use awc::Client;
 use clap::{Parser, Subcommand};
 use lazy_static::lazy_static;
 use rand::prelude::SliceRandom;
@@ -41,8 +47,6 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use crate::db::model::{ContractDbObj, DeployStatus, UserDbObj};
-use crate::error::AddressologyError;
 
 fn get_allowed_emails() -> Vec<String> {
     let res = env::var("ALLOWED_EMAILS")
@@ -164,7 +168,6 @@ pub async fn handle_compile(
     }
 }
 
-
 pub async fn handle_fancy_deploy_start(
     server_data: web::Data<Box<ServerData>>,
     contract_id: web::Path<String>,
@@ -178,25 +181,17 @@ pub async fn handle_fancy_deploy_start(
     let contract = match get_contract_by_id(&conn, contract_id, user.uid.clone()).await {
         Ok(Some(contract)) => {
             let mut contract = contract;
-                    match contract.deploy_status {
-                        DeployStatus::None => {
-                            contract.deploy_status = DeployStatus::Requested;
-                            contract
-                        }
-                        DeployStatus::Requested => {
-                            return HttpResponse::Ok().body("Already requested")
-                        }
-                        DeployStatus::TxSent => {
-                            return  HttpResponse::Ok().body("Already sent")
-                        }
-                        DeployStatus::Failed => {
-                            return  HttpResponse::Ok().body("Deployment Failed")
-                        }
-                        DeployStatus::Succeeded => {
-                            return  HttpResponse::Ok().body("Deployment Succeeded")
-                        }
-                    }
-        },
+            match contract.deploy_status {
+                DeployStatus::None => {
+                    contract.deploy_status = DeployStatus::Requested;
+                    contract
+                }
+                DeployStatus::Requested => return HttpResponse::Ok().body("Already requested"),
+                DeployStatus::TxSent => return HttpResponse::Ok().body("Already sent"),
+                DeployStatus::Failed => return HttpResponse::Ok().body("Deployment Failed"),
+                DeployStatus::Succeeded => return HttpResponse::Ok().body("Deployment Succeeded"),
+            }
+        }
         Ok(None) => {
             return HttpResponse::NotFound().finish();
         }
@@ -207,9 +202,7 @@ pub async fn handle_fancy_deploy_start(
     };
 
     match update_contract_data(&conn, contract).await {
-        Ok(contr) => {
-            HttpResponse::Ok().json(contr)
-        },
+        Ok(contr) => HttpResponse::Ok().json(contr),
         Err(err) => {
             log::error!("Error updating contract data {}", err);
             HttpResponse::InternalServerError().finish()
@@ -224,93 +217,6 @@ pub struct DeployData {
     pub network: String,
     pub bytecode: String,
     pub constructor_args: String,
-}
-
-
-pub async fn handle_fancy_deploy(
-    conn: &SqlitePool,
-    contract: ContractDbObj,
-) -> Result<(), AddressologyError> {
-    let address = contract.address.ok_or_else(||
-         err_custom_create!("Address not found on db obj")
-    )?;
-
-    let address = DbAddress::from_str(&address).map_err(|e| {
-        err_custom_create!("Failed to parse address: {}", e)
-    })?;
-
-    let fancy = get_by_address(&conn, address).await.map_err(
-        |_| err_custom_create!("Failed to get fancy address")
-    )?.ok_or_else(|| err_custom_create!("Fancy address not found"))?;
-
-
-    let deploy_data = serde_json::from_str::<DeployData>(&contract.data).map_err(|e| {
-        err_custom_create!("Failed to parse deploy data: {}", e)
-    })?;
-
-        let command = "npx hardhat run deploy3Universal.ts --network holesky";
-        let command = if cfg!(windows) {
-            format!("cmd /C {}", command)
-        } else {
-            command.to_string()
-        };
-        let current_dir = if cfg!(windows) {
-            "C:/vglm/pretzel/locker"
-        } else {
-            "/addressology/pretzel/locker"
-        };
-
-        let args = if cfg!(windows) {
-            command.split_whitespace().collect::<Vec<&str>>()
-        } else {
-            vec!["/bin/bash", "-c", &command]
-        };
-
-        let bytes = hex::decode(deploy_data.constructor_args.replace("0x", "").clone()).map_err(|e| {
-            err_custom_create!("Failed to decode constructor args: {}", e)
-        })?;
-
-    let total_bytes = deploy_data.bytecode.clone() + &hex::encode(bytes);
-
-        let env_vars = vec![
-            ("ADDRESS", format!("{:#x}", fancy.address.addr())),
-            ("FACTORY", format!("{:#x}", fancy.factory.addr())),
-            ("SALT", fancy.salt.clone()),
-            ("MINER", fancy.miner.clone()),
-            ("BYTECODE", total_bytes.clone()),
-        ];
-
-        log::info!("Running command: {:#?}", args);
-        let cmd = tokio::process::Command::new(args[0])
-            .stdout(std::process::Stdio::piped())
-            .stderr(std::process::Stdio::piped())
-            .envs(env_vars)
-            .current_dir(current_dir)
-            .args(&args[1..])
-            .spawn()
-            .map_err(|e| {
-                err_custom_create!("Failed to spawn command: {}", e)
-            })?;
-
-        let output = cmd.wait_with_output().await.map_err(|e| {
-            err_custom_create!("Failed to wait for command: {}", e)
-        })?;
-        let output_str = String::from_utf8_lossy(&output.stdout);
-        log::info!("Command output: {}", output_str.to_string());
-        if output.status.success() {
-            Ok(())
-        } else {
-            log::error!(
-                "Command failed: {}",
-                String::from_utf8_lossy(&output.stderr)
-            );
-            Err(err_custom_create!(
-                "Command failed: {}",
-                String::from_utf8_lossy(&output.stderr)
-            ))
-        }
-
-    //run command
 }
 
 #[cfg(feature = "dashboard")]
@@ -520,7 +426,10 @@ async fn main() -> std::io::Result<()> {
                     .route("/fancy/random", web::get().to(handle_random))
                     .route("/fancy/list", web::get().to(handle_list))
                     .route("/fancy/new", web::post().to(handle_fancy_new))
-                    .route("/fancy/deploy/{contract_id}", web::post().to(handle_fancy_deploy_start))
+                    .route(
+                        "/fancy/deploy/{contract_id}",
+                        web::post().to(handle_fancy_deploy_start),
+                    )
                     .route("/contract/compile", web::post().to(handle_compile))
                     .route("/greet", web::get().to(handle_greet))
                     .route(
@@ -571,9 +480,13 @@ async fn main() -> std::io::Result<()> {
                 .await
                 .unwrap();
 
-            let contracts = get_all_contracts_by_deploy_status_and_network(&conn, DeployStatus::Requested, network)
-                .await
-                .unwrap();
+            let contracts = get_all_contracts_by_deploy_status_and_network(
+                &conn,
+                DeployStatus::Requested,
+                network,
+            )
+            .await
+            .unwrap();
 
             if let Some(contract) = contracts.first() {
                 log::info!("Processing contract: {:#?}", contract);
@@ -582,7 +495,7 @@ async fn main() -> std::io::Result<()> {
                     Ok(_) => {
                         log::info!("Deployment successful");
                         Ok(())
-                    },
+                    }
                     Err(e) => {
                         log::error!("{}", e);
                         std::process::exit(1)
@@ -592,7 +505,7 @@ async fn main() -> std::io::Result<()> {
                 log::info!("No contracts to process");
                 Ok(())
             }
-        },
+        }
         Commands::ComputeCreate3 { factory, salt } => {
             let result = compute_create3_command(&factory, &salt);
             match result {
