@@ -85,6 +85,9 @@ const ContractFromSources = () => {
         document.getElementsByClassName("main-page")[0].setAttribute("style", `margin-left: ${marginLeft}px`);
     };
 
+    if (!contracts) {
+        return <div>No contract</div>;
+    }
     const compiledContracts: { [key: string]: ContractCompiled } = {};
     for (const value of Object.values(contracts)) {
         for (const [key2, value2] of Object.entries(value)) {
@@ -139,6 +142,7 @@ const ContractFromSources = () => {
                 ))}
                 {Object.keys(compiledContracts).map((key, index) => {
                     const objWithSource = compiledContracts[key];
+                    objWithSource.contract = objWithSource.contract || {};
                     objWithSource.contract.singleFileCode = code;
                     return (
                         <div key={key}>

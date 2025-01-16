@@ -1,6 +1,6 @@
 mod api;
 
-use crate::db::model::{ContractCreateFromApi, ContractDbObj, UserDbObj};
+use crate::db::model::{ContractCreateFromApi, ContractDbObj, DeployStatus, UserDbObj};
 use crate::db::ops::{
     delete_contract_by_id, get_all_contracts_by_user, get_contract_by_id, insert_contract_obj,
     update_contract_data,
@@ -48,6 +48,9 @@ pub async fn insert_contract_info_api(
         network: contract_api.network,
         data: contract_api.data,
         tx: None,
+        deploy_status: DeployStatus::None,
+        deploy_requested: None,
+        deploy_sent: None,
         deployed: None,
     };
 

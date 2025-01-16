@@ -1,5 +1,11 @@
-use crate::db::model::ContractDbObj;
-use sqlx::SqlitePool;
+use std::str::FromStr;
+use serde_json::value::RawValue;
+use crate::db::model::{ContractDbObj, DeployStatus};
+use sqlx::{Database, Decode, Encode, Sqlite, SqlitePool, Type};
+use sqlx::encode::IsNull;
+use sqlx::error::BoxDynError;
+use web3::types::{Address, Res};
+use crate::types::DbAddress;
 
 pub async fn insert_contract_obj(
     conn: &SqlitePool,
@@ -7,8 +13,8 @@ pub async fn insert_contract_obj(
 ) -> Result<ContractDbObj, sqlx::Error> {
     let res = sqlx::query_as::<_, ContractDbObj>(
         r"INSERT INTO contract
-        (contract_id, user_id, created, network, data, tx, deployed)
-        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *;
+        (contract_id, user_id, created, network, data, tx, deploy_status, deploy_requested, deploy_sent, deployed)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *;
         ",
     )
     .bind(contract_data.contract_id)
@@ -17,11 +23,45 @@ pub async fn insert_contract_obj(
     .bind(&contract_data.network)
     .bind(&contract_data.data)
     .bind(&contract_data.tx)
+    .bind(contract_data.deploy_status)
+    .bind(contract_data.deploy_requested)
+    .bind(contract_data.deploy_sent)
     .bind(contract_data.deployed)
     .fetch_one(conn)
     .await?;
     Ok(res)
 }
+
+
+impl sqlx::Type<sqlx::Sqlite> for DeployStatus {
+    fn type_info() -> <Sqlite as sqlx::Database>::TypeInfo {
+        <String as sqlx::Type<Sqlite>>::type_info()
+    }
+    fn compatible(ty: &<Sqlite as sqlx::Database>::TypeInfo) -> bool {
+        <String as sqlx::Type<Sqlite>>::compatible(ty)
+    }
+}
+
+impl<'r, DB: Database> Decode<'r, DB> for DeployStatus
+where
+    &'r str: Decode<'r, DB>,
+{
+    fn decode(value: <DB as Database>::ValueRef<'r>) -> sqlx::Result<Self, BoxDynError> {
+        let value: &str = Decode::decode(value)?;
+        DeployStatus::from_str(value)
+            .map_err(Into::into)
+    }
+}
+
+impl<'q, DB: Database> Encode<'q, DB> for DeployStatus
+where
+    String: sqlx::Encode<'q, DB>,
+{
+    fn encode_by_ref(&self, buf: &mut DB::ArgumentBuffer<'q>) -> sqlx::Result<IsNull, BoxDynError> {
+        Encode::<DB>::encode(self.to_string(), buf)
+    }
+}
+
 
 pub async fn get_contract_by_id(
     conn: &SqlitePool,
@@ -49,6 +89,24 @@ pub async fn get_all_contracts_by_user(
     Ok(res)
 }
 
+pub async fn get_all_contracts_by_deploy_status_and_network(
+    conn: &SqlitePool,
+    deploy_status: DeployStatus,
+    network: String,
+) -> Result<Vec<ContractDbObj>, sqlx::Error> {
+    let res = sqlx::query_as::<_, ContractDbObj>(r"
+    SELECT * FROM contract
+    WHERE deploy_status=$1
+        AND network=$2
+    ORDER BY deploy_requested ASC;
+        ")
+    .bind(deploy_status)
+    .bind(network)
+    .fetch_all(conn)
+    .await?;
+    Ok(res)
+}
+
 pub async fn delete_contract_by_id(
     conn: &SqlitePool,
     contract_id: String,
@@ -71,15 +129,21 @@ pub async fn update_contract_data(
     SET
     data = $1,
     network = $2,
-    tx = $3,
-    deployed = $4
-    WHERE contract_id = $2 AND user_id = $3 RETURNING *;",
+    tx = $5,
+    deploy_status = $6,
+    deploy_requeted = $7,
+    deploy_sent = $8,
+    deployed = $9
+    WHERE contract_id = $3 AND user_id = $4 RETURNING *;",
     )
     .bind(contract.data)
     .bind(contract.network)
     .bind(contract.contract_id)
     .bind(contract.user_id)
     .bind(contract.tx)
+    .bind(contract.deploy_status)
+    .bind(contract.deploy_requested)
+    .bind(contract.deploy_sent)
     .bind(contract.deployed)
     .fetch_one(conn)
     .await?;

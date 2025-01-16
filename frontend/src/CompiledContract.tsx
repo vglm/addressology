@@ -9,6 +9,7 @@ import { ethers } from "ethers"; //Example style, you can use another
 import { ContractSaved } from "./model/Contract";
 import "./CompiledContract.css";
 import { useParams } from "react-router-dom";
+import InputParameters from "./InputParameters";
 
 const CompiledContract = () => {
     const [contractDetails, setContractDetails] = useState<ContractSaved | null>(null);
@@ -62,17 +63,8 @@ const CompiledContract = () => {
     }, []);
 
     const deploySourceCode = async (bytecode: string, constructorArgs: string) => {
-        const bytecodeBytes = ethers.getBytes("0x" + bytecode.replace("0x", ""));
-        const constructorArgsBytes = ethers.getBytes("0x" + constructorArgs.replace("0x", ""));
-
-        const response = await backendFetch("/api/fancy/deploy", {
+        const response = await backendFetch(`/api/fancy/deploy/${contractId}`, {
             method: "Post",
-            body: JSON.stringify({
-                network: network,
-                address: address,
-                bytecode: ethers.hexlify(bytecodeBytes),
-                constructorArgs: ethers.hexlify(constructorArgsBytes),
-            }),
         });
         const deploy = await response.json();
         console.log(deploy);
@@ -210,6 +202,8 @@ const CompiledContract = () => {
                     </MenuItem>
                 ))}
             </Select>
+
+            <InputParameters abi={JSON.stringify(metadata.output.abi)} constructorArgs={constructorArgs} setConstructorArgs={setConstructorArgs}></InputParameters>
             <Button onClick={(_e) => deploySourceCode(bytecode, constructorArgs)}>Deploy</Button>
             <div style={{ height: 300 }}>Empty</div>
         </div>
