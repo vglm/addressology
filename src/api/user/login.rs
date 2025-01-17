@@ -45,7 +45,7 @@ pub async fn handle_login(
     let key = pass_to_hash(login.password.as_bytes());
 
     //log::info!("Getting user: {}", email);
-    let usr = match get_user(&db_conn, &email).await {
+    let usr = match get_user(&*db_conn, &email).await {
         Ok(usr) => usr,
         Err(err) => {
             log::error!("Error getting user: {}", err);

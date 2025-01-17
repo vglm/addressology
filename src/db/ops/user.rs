@@ -1,5 +1,5 @@
 use crate::db::model::{OauthStageDbObj, UserDbObj};
-use sqlx::SqlitePool;
+use sqlx::{Executor, Sqlite, SqlitePool};
 
 pub async fn insert_oauth_stage(
     conn: &SqlitePool,
@@ -43,8 +43,8 @@ pub async fn delete_old_oauth_stages(conn: &SqlitePool) -> Result<(), sqlx::Erro
 pub async fn insert_user(conn: &SqlitePool, user: &UserDbObj) -> Result<UserDbObj, sqlx::Error> {
     let res = sqlx::query_as::<_, UserDbObj>(
         r"INSERT INTO users
-(uid, email, pass_hash, created_date, last_pass_change, allow_pass_login, allow_google_login)
-VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *;
+(uid, email, pass_hash, created_date, last_pass_change, allow_pass_login, allow_google_login, tokens)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *;
 ",
     )
     .bind(&user.uid)
@@ -54,6 +54,7 @@ VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *;
     .bind(user.last_pass_change)
     .bind(user.allow_pass_login)
     .bind(user.allow_google_login)
+    .bind(user.tokens)
     .fetch_one(conn)
     .await?;
     Ok(res)
@@ -107,7 +108,8 @@ last_pass_change = $5,
 set_pass_token = $6,
 set_pass_token_date = $7,
 allow_pass_login = $8,
-allow_google_login = $9
+allow_google_login = $9,
+tokens = $10
 WHERE id = $1
 ",
     )
@@ -120,17 +122,33 @@ WHERE id = $1
     .bind(user.set_pass_token_date)
     .bind(user.allow_pass_login)
     .bind(user.allow_google_login)
+    .bind(user.tokens)
     .execute(conn)
     .await?;
     Ok(user.clone())
 }
 
-pub async fn get_user(conn: &SqlitePool, email: &str) -> Result<UserDbObj, sqlx::Error> {
+pub async fn get_user<'c, E>(conn: E, email: &str) -> Result<UserDbObj, sqlx::Error>
+where
+    E: Executor<'c, Database = Sqlite>,
+{
     let res = sqlx::query_as::<_, UserDbObj>(r"SELECT * FROM users WHERE email = $1")
         .bind(email)
         .fetch_one(conn)
         .await?;
     Ok(res)
+}
+
+pub async fn update_user_tokens<'c, E>(conn: E, email: &str, tokens: i32) -> Result<(), sqlx::Error>
+where
+    E: Executor<'c, Database = Sqlite>,
+{
+    let _res = sqlx::query(r"UPDATE users SET tokens = $1 WHERE email = $2")
+        .bind(tokens)
+        .bind(email)
+        .execute(conn)
+        .await?;
+    Ok(())
 }
 
 #[tokio::test]
@@ -156,6 +174,7 @@ async fn tx_test() -> sqlx::Result<()> {
         allow_google_login: true,
         set_pass_token: None,
         set_pass_token_date: None,
+        tokens: 444444444,
     };
 
     let user_from_insert = insert_user(&conn, &user_to_insert)

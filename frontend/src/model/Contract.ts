@@ -50,7 +50,7 @@ export interface CompileResponse {
 export interface ContractSaved {
     contractId: string;
     created: string;
-    address?: string;
+    address: string | null;
     network: string;
     data: string;
     deployStatus: string;

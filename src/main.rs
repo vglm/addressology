@@ -17,10 +17,7 @@ use crate::api::user::handle_greet;
 use crate::cookie::load_key_or_create;
 use crate::db::connection::create_sqlite_connection;
 use crate::db::model::{DeployStatus, UserDbObj};
-use crate::db::ops::{
-    get_all_contracts_by_deploy_status_and_network, get_contract_by_id, insert_fancy_obj, list_all,
-    update_contract_data,
-};
+use crate::db::ops::{fancy_get_by_address, fancy_update_owner, get_all_contracts_by_deploy_status_and_network, get_contract_by_id, get_user, insert_fancy_obj, list_all_free, update_contract_data, update_user_tokens};
 use crate::deploy::handle_fancy_deploy;
 use crate::hash::compute_create3_command;
 use crate::solc::compile_solc;
@@ -40,7 +37,7 @@ use clap::{Parser, Subcommand};
 use lazy_static::lazy_static;
 use rand::prelude::SliceRandom;
 use serde::{Deserialize, Serialize};
-use sqlx::SqlitePool;
+use sqlx::{Error, Sqlite, SqlitePool, Transaction};
 use std::collections::BTreeMap;
 use std::env;
 use std::path::PathBuf;
@@ -81,15 +78,16 @@ pub struct ServerData {
 
 pub async fn handle_random(server_data: web::Data<Box<ServerData>>) -> impl Responder {
     let conn = server_data.db_connection.lock().await;
-    let list = list_all(&conn).await.unwrap();
+    let list = list_all_free(&conn).await.unwrap();
     let random = list.choose(&mut rand::thread_rng()).unwrap();
 
     HttpResponse::Ok().json(random)
 }
 
+
 pub async fn handle_list(server_data: web::Data<Box<ServerData>>) -> impl Responder {
     let conn = server_data.db_connection.lock().await;
-    let list = list_all(&conn).await.unwrap();
+    let list = list_all_free(&conn).await.unwrap();
 
     HttpResponse::Ok().json(list)
 }
@@ -205,6 +203,85 @@ pub async fn handle_fancy_deploy_start(
         Ok(contr) => HttpResponse::Ok().json(contr),
         Err(err) => {
             log::error!("Error updating contract data {}", err);
+            HttpResponse::InternalServerError().finish()
+        }
+    }
+}
+pub async fn handle_fancy_buy_api(
+    server_data: web::Data<Box<ServerData>>,
+    address: web::Path<String>,
+    session: Session,
+) -> HttpResponse {
+    let user: UserDbObj = login_check_and_get!(session);
+
+    let address = address.into_inner();
+
+    let conn = server_data.db_connection.lock().await;
+
+    let mut trans = match conn.begin().await {
+        Ok(tx) => tx,
+        Err(err) => {
+            log::error!("Error starting transaction: {}", err);
+            return HttpResponse::InternalServerError().finish();
+        }
+    };
+
+    let user_for_tx = match get_user(&mut *trans, &user.email).await {
+        Ok(user) => user,
+        Err(err) => {
+            log::error!("Error getting user: {}", err);
+            return HttpResponse::InternalServerError().finish();
+        }
+    };
+
+    let address = normalize_address!(address);
+    let address_db = match fancy_get_by_address(&mut *trans, address.clone()).await {
+        Ok(Some(addr)) => addr,
+        Ok(None) => {
+            log::error!("Address not found: {}", address);
+            return HttpResponse::NotFound().finish();
+        }
+        Err(err) => {
+            log::error!("Error getting address: {}", err);
+            return HttpResponse::InternalServerError().finish();
+        }
+    };
+
+    if address_db.owner.is_some() {
+        log::error!("Address already owned: {}", address);
+        return HttpResponse::BadRequest().body("Address already owned");
+    }
+
+    if user_for_tx.tokens < address_db.price {
+        log::error!(
+            "User has insufficient funds: {} < {}",
+            user_for_tx.tokens, address_db.price
+        );
+        return HttpResponse::BadRequest().body("Insufficient funds");
+    }
+
+    match fancy_update_owner(&mut *trans, address.clone(), user.uid.clone()).await {
+        Ok(_) => {
+
+        }
+        Err(err) => {
+            log::error!("Error updating owner: {}", err);
+            return HttpResponse::InternalServerError().finish();
+        }
+    }
+
+    match update_user_tokens(&mut *trans, &user.uid, user_for_tx.tokens - address_db.price).await {
+        Ok(_) => {}
+        Err(err) => {
+            log::error!("Error updating user tokens: {}", err);
+            return HttpResponse::InternalServerError().finish();
+        }
+    }
+
+    match trans.commit().await {
+        Ok(_) => HttpResponse::Ok().finish(),
+        Err(err) => {
+            log::error!("Error committing transaction: {}", err);
             HttpResponse::InternalServerError().finish()
         }
     }
@@ -426,6 +503,7 @@ async fn main() -> std::io::Result<()> {
                     .route("/fancy/random", web::get().to(handle_random))
                     .route("/fancy/list", web::get().to(handle_list))
                     .route("/fancy/new", web::post().to(handle_fancy_new))
+                    .route("/fancy/buy/{address}", web::post().to(handle_fancy_buy_api))
                     .route(
                         "/fancy/deploy/{contract_id}",
                         web::post().to(handle_fancy_deploy_start),

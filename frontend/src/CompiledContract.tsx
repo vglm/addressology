@@ -18,7 +18,7 @@ const CompiledContract = () => {
     const [network, setNetwork] = useState("holesky");
     const [networkCopyTo, setNetworkCopyTo] = useState("holesky");
 
-    const [address, setAddress] = useState();
+    const [address, setAddress] = useState<string | null>(null);
     const [constructorArgs, setConstructorArgs] = useState("");
     const [networks, setNetworks] = useState<string[]>([]);
     const [bytecode, setBytecode] = useState<string | null>(null);
@@ -59,7 +59,7 @@ const CompiledContract = () => {
 
     useEffect(() => {
         getContractDetails().then();
-        getAddress().then();
+
         getNetworks().then(setNetworks);
     }, []);
 

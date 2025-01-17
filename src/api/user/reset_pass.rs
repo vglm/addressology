@@ -27,7 +27,7 @@ pub async fn handle_password_reset(
 
     let db_conn = data.db_connection.lock().await;
 
-    let user = match get_user(&db_conn, &email).await {
+    let user = match get_user(&*db_conn, &email).await {
         Ok(user) => user,
         Err(_err) => {
             if !*ALLOW_CREATING_NEW_ACCOUNTS {
@@ -46,6 +46,7 @@ pub async fn handle_password_reset(
                 allow_google_login: false,
                 set_pass_token: None,
                 set_pass_token_date: None,
+                tokens: 0,
             };
             match insert_user(&db_conn, &user_to_insert).await {
                 Ok(user) => user,

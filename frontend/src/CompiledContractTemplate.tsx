@@ -17,7 +17,6 @@ interface CompiledContractProps {
 
 const CompiledContractTemplate = (props: CompiledContractProps) => {
     const [network, _setNetwork] = useState("holesky");
-    const [address, setAddress] = useState();
     const [bytecode, _setBytecode] = useState(props.contract?.contract.evm.bytecode.object ?? "");
     const [constructorArgs, setConstructorArgs] = useState("");
     const [networks, setNetworks] = useState<string[]>([]);
@@ -26,16 +25,8 @@ const CompiledContractTemplate = (props: CompiledContractProps) => {
         return ["holesky", "amoy"];
     };
 
-    const getAddress = async () => {
-        const response = await backendFetch("/api/fancy/random", {
-            method: "Get",
-        });
-        const address = await response.json();
-        setAddress(address.address);
-    };
 
     useEffect(() => {
-        getAddress().then();
         getNetworks().then(setNetworks);
     }, []);
 
@@ -64,8 +55,7 @@ const CompiledContractTemplate = (props: CompiledContractProps) => {
     return (
         <div>
             <h3>Contract info</h3>
-            <div>Address {address}</div>
-            <Button onClick={(_e) => getAddress()}>Get Random Address</Button>
+            <div>Address not set at this point</div>
             <div>
                 Compiler version: {metadata.language} - {metadata.compiler.version}
             </div>

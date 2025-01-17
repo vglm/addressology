@@ -42,7 +42,7 @@ pub async fn handle_password_change(
 
     // Fetch the user from the database using the provided email
     log::info!("Fetching user: {}", email);
-    let usr = match get_user(&db_conn, &email).await {
+    let usr = match get_user(&*db_conn, &email).await {
         Ok(usr) => usr,
         Err(err) => {
             log::error!("Error getting user: {}", err);
