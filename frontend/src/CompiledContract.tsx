@@ -5,12 +5,10 @@ import "prismjs/components/prism-solidity";
 import "prismjs/themes/prism.css";
 import { backendFetch } from "./common/BackendCall";
 import { Button, MenuItem, Select } from "@mui/material";
-import { ethers } from "ethers"; //Example style, you can use another
-import {ContractCompiled, ContractSaved} from "./model/Contract";
+import { ContractCompiled, ContractSaved } from "./model/Contract";
 import "./CompiledContract.css";
 import { useParams } from "react-router-dom";
 import InputParameters from "./InputParameters";
-import {deepClone} from "@mui/x-data-grid/internals";
 
 const CompiledContract = () => {
     const [contractDetails, setContractDetails] = useState<ContractSaved | null>(null);
@@ -63,7 +61,7 @@ const CompiledContract = () => {
         getNetworks().then(setNetworks);
     }, []);
 
-    const deploySourceCode = async (bytecode: string, constructorArgs: string) => {
+    const deploySourceCode = async () => {
         const response = await backendFetch(`/api/fancy/deploy/${contractId}`, {
             method: "Post",
         });
@@ -97,7 +95,7 @@ const CompiledContract = () => {
             data: JSON.stringify(data),
             network: networkCopyTo,
             address: address,
-        }
+        };
 
         const response = await backendFetch("/api/contract/update", {
             method: "Post",
@@ -217,9 +215,12 @@ const CompiledContract = () => {
                     </MenuItem>
                 ))}
             </Select>
-
-            <InputParameters abi={JSON.stringify(metadata.output.abi)} constructorArgs={constructorArgs} setConstructorArgs={setConstructorArgs}></InputParameters>
-            <Button onClick={(_e) => deploySourceCode(bytecode, constructorArgs)}>Deploy</Button>
+            <InputParameters
+                abi={JSON.stringify(metadata.output.abi)}
+                constructorArgs={constructorArgs}
+                setConstructorArgs={setConstructorArgs}
+            ></InputParameters>
+            <Button onClick={(_e) => deploySourceCode()}>Deploy</Button>
             <div style={{ height: 300 }}>Empty</div>
         </div>
     );

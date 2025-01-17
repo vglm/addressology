@@ -1,13 +1,11 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
-import {ConstructorFragment, ethers} from "ethers";
+import React, { useEffect, useState } from "react";
+import { ConstructorFragment, ethers } from "ethers";
 import InputParameter from "./InputParameter";
 
-
-
 interface InputParametersProps {
-    abi: string,
-    constructorArgs: string,
-    setConstructorArgs: (args: string) => void
+    abi: string;
+    constructorArgs: string;
+    setConstructorArgs: (args: string) => void;
 }
 
 function decodeConstructorParameters(abiStr: string) {
@@ -25,15 +23,11 @@ function decodeConstructorParameters(abiStr: string) {
 }
 
 const InputParameters = (props: InputParametersProps) => {
-
     const [constructorArgs, setConstructorArgs] = useState<ConstructorFragment | null>(null);
 
     useEffect(() => {
         setConstructorArgs(decodeConstructorParameters(props.abi));
     }, []);
-
-
-
 
     return (
         <div>
@@ -49,13 +43,18 @@ const InputParameters = (props: InputParametersProps) => {
                     </tr>
                     {constructorArgs?.inputs.map((input) => {
                         return (
-                            <InputParameter key={input.name} name={input.name} type={input.type} value={props.constructorArgs} />
+                            <InputParameter
+                                key={input.name}
+                                name={input.name}
+                                type={input.type}
+                                value={props.constructorArgs}
+                            />
                         );
                     })}
                 </table>
             </div>
         </div>
     );
-}
+};
 
 export default InputParameters;

@@ -5,7 +5,6 @@ import "prismjs/components/prism-solidity";
 import "prismjs/themes/prism.css";
 import { backendFetch } from "./common/BackendCall";
 import { Button, MenuItem, Select } from "@mui/material";
-import { ethers } from "ethers"; //Example style, you can use another
 import { CompilerMetadata, ContractCompiled } from "./model/Contract";
 import "./CompiledContract.css";
 
@@ -25,7 +24,6 @@ const CompiledContractTemplate = (props: CompiledContractProps) => {
         return ["holesky", "amoy"];
     };
 
-
     useEffect(() => {
         getNetworks().then(setNetworks);
     }, []);
@@ -37,9 +35,6 @@ const CompiledContractTemplate = (props: CompiledContractProps) => {
     const metadata = JSON.parse(props.contract.contract.metadata) as CompilerMetadata;
 
     const saveSourceCode = async () => {
-        const bytecodeBytes = ethers.getBytes("0x" + bytecode.replace("0x", ""));
-        const constructorArgsBytes = ethers.getBytes("0x" + constructorArgs.replace("0x", ""));
-
         const response = await backendFetch("/api/contract/new", {
             method: "Post",
             body: JSON.stringify({

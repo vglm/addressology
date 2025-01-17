@@ -8,7 +8,7 @@ import "prismjs/themes/prism.css";
 import { backendFetch } from "./common/BackendCall";
 import { Button } from "@mui/material";
 import "./ContractFromSources.css";
-import {CompileErrors, CompileResponse, ContractCompiled, ContractCompiledInt} from "./model/Contract";
+import { CompileErrors, CompileResponse, ContractCompiled, ContractCompiledInt } from "./model/Contract";
 import { useNavigate } from "react-router-dom";
 
 const ContractFromSources = () => {
@@ -101,10 +101,7 @@ const ContractFromSources = () => {
             constructorArgs: "0x",
             contract: objWithSource,
         };
-        localStorage.setItem(
-            "currentContract",
-            JSON.stringify(newObj),
-        );
+        localStorage.setItem("currentContract", JSON.stringify(newObj));
         navigate("/template");
     }
 

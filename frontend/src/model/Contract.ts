@@ -46,7 +46,6 @@ export interface CompileResponse {
     errors?: CompileErrors[];
 }
 
-
 export interface ContractSaved {
     contractId: string;
     created: string;
