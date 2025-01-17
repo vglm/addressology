@@ -17,7 +17,11 @@ use crate::api::user::handle_greet;
 use crate::cookie::load_key_or_create;
 use crate::db::connection::create_sqlite_connection;
 use crate::db::model::{DeployStatus, UserDbObj};
-use crate::db::ops::{fancy_get_by_address, fancy_update_owner, get_all_contracts_by_deploy_status_and_network, get_contract_by_id, get_user, insert_fancy_obj, list_all_free, update_contract_data, update_user_tokens};
+use crate::db::ops::{
+    fancy_get_by_address, fancy_list_best_score, fancy_list_newest, fancy_update_owner,
+    get_all_contracts_by_deploy_status_and_network, get_contract_by_id, get_user, insert_fancy_obj,
+    list_all_free, update_contract_data, update_user_tokens,
+};
 use crate::deploy::handle_fancy_deploy;
 use crate::hash::compute_create3_command;
 use crate::solc::compile_solc;
@@ -37,7 +41,7 @@ use clap::{Parser, Subcommand};
 use lazy_static::lazy_static;
 use rand::prelude::SliceRandom;
 use serde::{Deserialize, Serialize};
-use sqlx::{Error, Sqlite, SqlitePool, Transaction};
+use sqlx::SqlitePool;
 use std::collections::BTreeMap;
 use std::env;
 use std::path::PathBuf;
@@ -84,10 +88,23 @@ pub async fn handle_random(server_data: web::Data<Box<ServerData>>) -> impl Resp
     HttpResponse::Ok().json(random)
 }
 
-
 pub async fn handle_list(server_data: web::Data<Box<ServerData>>) -> impl Responder {
     let conn = server_data.db_connection.lock().await;
     let list = list_all_free(&conn).await.unwrap();
+
+    HttpResponse::Ok().json(list)
+}
+
+pub async fn handle_list_newest(server_data: web::Data<Box<ServerData>>) -> impl Responder {
+    let conn = server_data.db_connection.lock().await;
+    let list = fancy_list_newest(&conn).await.unwrap();
+
+    HttpResponse::Ok().json(list)
+}
+
+pub async fn handle_list_best_score(server_data: web::Data<Box<ServerData>>) -> impl Responder {
+    let conn = server_data.db_connection.lock().await;
+    let list = fancy_list_best_score(&conn).await.unwrap();
 
     HttpResponse::Ok().json(list)
 }
@@ -235,7 +252,7 @@ pub async fn handle_fancy_buy_api(
     };
 
     let address = normalize_address!(address);
-    let address_db = match fancy_get_by_address(&mut *trans, address.clone()).await {
+    let address_db = match fancy_get_by_address(&mut *trans, address).await {
         Ok(Some(addr)) => addr,
         Ok(None) => {
             log::error!("Address not found: {}", address);
@@ -255,22 +272,27 @@ pub async fn handle_fancy_buy_api(
     if user_for_tx.tokens < address_db.price {
         log::error!(
             "User has insufficient funds: {} < {}",
-            user_for_tx.tokens, address_db.price
+            user_for_tx.tokens,
+            address_db.price
         );
         return HttpResponse::BadRequest().body("Insufficient funds");
     }
 
-    match fancy_update_owner(&mut *trans, address.clone(), user.uid.clone()).await {
-        Ok(_) => {
-
-        }
+    match fancy_update_owner(&mut *trans, address, user.uid.clone()).await {
+        Ok(_) => {}
         Err(err) => {
             log::error!("Error updating owner: {}", err);
             return HttpResponse::InternalServerError().finish();
         }
     }
 
-    match update_user_tokens(&mut *trans, &user.uid, user_for_tx.tokens - address_db.price).await {
+    match update_user_tokens(
+        &mut *trans,
+        &user.uid,
+        user_for_tx.tokens - address_db.price,
+    )
+    .await
+    {
         Ok(_) => {}
         Err(err) => {
             log::error!("Error updating user tokens: {}", err);
@@ -502,6 +524,11 @@ async fn main() -> std::io::Result<()> {
                     .route("/change_pass", web::post().to(user::handle_password_change))
                     .route("/fancy/random", web::get().to(handle_random))
                     .route("/fancy/list", web::get().to(handle_list))
+                    .route("/fancy/list_newest", web::get().to(handle_list_newest))
+                    .route(
+                        "/fancy/list_best_score",
+                        web::get().to(handle_list_best_score),
+                    )
                     .route("/fancy/new", web::post().to(handle_fancy_new))
                     .route("/fancy/buy/{address}", web::post().to(handle_fancy_buy_api))
                     .route(

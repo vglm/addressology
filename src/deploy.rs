@@ -1,9 +1,9 @@
 use crate::db::model::ContractDbObj;
+use crate::db::ops::fancy_get_by_address;
 use crate::error::AddressologyError;
 use crate::types::DbAddress;
 use crate::{err_custom_create, DeployData};
 use sqlx::SqlitePool;
-use crate::db::ops::fancy_get_by_address;
 
 pub async fn handle_fancy_deploy(
     conn: &SqlitePool,
