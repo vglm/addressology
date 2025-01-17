@@ -1,5 +1,5 @@
 use crate::db::model::{ContractDbObj, DeployStatus};
-use sqlx::SqlitePool;
+use sqlx::{Executor, Sqlite, SqlitePool};
 
 pub async fn insert_contract_obj(
     conn: &SqlitePool,
@@ -26,11 +26,14 @@ pub async fn insert_contract_obj(
     Ok(res)
 }
 
-pub async fn get_contract_by_id(
-    conn: &SqlitePool,
+pub async fn get_contract_by_id<'c, E>(
+    conn: E,
     contract_id: String,
     user_id: String,
-) -> Result<Option<ContractDbObj>, sqlx::Error> {
+) -> Result<Option<ContractDbObj>, sqlx::Error>
+where
+    E: Executor<'c, Database = Sqlite>,
+{
     let res = sqlx::query_as::<_, ContractDbObj>(
         r"SELECT * FROM contract WHERE contract_id = $1 AND user_id = $2;",
     )
@@ -72,12 +75,15 @@ pub async fn get_all_contracts_by_deploy_status_and_network(
     Ok(res)
 }
 
-pub async fn delete_contract_by_id(
-    conn: &SqlitePool,
+pub async fn delete_contract_by_id<'c, E>(
+    conn: E,
     contract_id: String,
     user_id: String,
-) -> Result<(), sqlx::Error> {
-    sqlx::query(r"DELETE FROM contract WHERE contract_id = $1 AND user_id = $2;")
+) -> Result<(), sqlx::Error>
+where
+    E: Executor<'c, Database = Sqlite>,
+{
+    sqlx::query(r"DELETE FROM contract WHERE contract_id = $1 AND user_id = $2")
         .bind(contract_id)
         .bind(user_id)
         .execute(conn)
@@ -85,10 +91,13 @@ pub async fn delete_contract_by_id(
     Ok(())
 }
 
-pub async fn update_contract_data(
-    conn: &SqlitePool,
+pub async fn update_contract_data<'c, E>(
+    conn: E,
     contract: ContractDbObj,
-) -> Result<ContractDbObj, sqlx::Error> {
+) -> Result<ContractDbObj, sqlx::Error>
+where
+    E: Executor<'c, Database = Sqlite>,
+{
     let obj = sqlx::query_as::<_, ContractDbObj>(
         r"UPDATE contract
     SET
@@ -96,7 +105,7 @@ pub async fn update_contract_data(
     network = $2,
     tx = $5,
     deploy_status = $6,
-    deploy_requeted = $7,
+    deploy_requested = $7,
     deploy_sent = $8,
     deployed = $9
     WHERE contract_id = $3 AND user_id = $4 RETURNING *;",

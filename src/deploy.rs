@@ -16,7 +16,7 @@ pub async fn handle_fancy_deploy(
     let address = DbAddress::from_str(&address)
         .map_err(|e| err_custom_create!("Failed to parse address: {}", e))?;
 
-    let fancy = get_by_address(&conn, address)
+    let fancy = get_by_address(conn, address)
         .await
         .map_err(|_| err_custom_create!("Failed to get fancy address"))?
         .ok_or_else(|| err_custom_create!("Fancy address not found"))?;

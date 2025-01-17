@@ -178,7 +178,7 @@ pub async fn handle_fancy_deploy_start(
 
     let conn = server_data.db_connection.lock().await;
 
-    let contract = match get_contract_by_id(&conn, contract_id, user.uid.clone()).await {
+    let contract = match get_contract_by_id(&*conn, contract_id, user.uid.clone()).await {
         Ok(Some(contract)) => {
             let mut contract = contract;
             match contract.deploy_status {
@@ -201,7 +201,7 @@ pub async fn handle_fancy_deploy_start(
         }
     };
 
-    match update_contract_data(&conn, contract).await {
+    match update_contract_data(&*conn, contract).await {
         Ok(contr) => HttpResponse::Ok().json(contr),
         Err(err) => {
             log::error!("Error updating contract data {}", err);

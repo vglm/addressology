@@ -11,6 +11,8 @@ import "./CompiledContract.css";
 
 interface CompiledContractProps {
     contract?: ContractCompiled;
+
+    onDelete: () => void;
 }
 
 const CompiledContractTemplate = (props: CompiledContractProps) => {
@@ -50,13 +52,7 @@ const CompiledContractTemplate = (props: CompiledContractProps) => {
         const response = await backendFetch("/api/contract/new", {
             method: "Post",
             body: JSON.stringify({
-                data: JSON.stringify({
-                    bytecode: ethers.hexlify(bytecodeBytes),
-                    constructorArgs: ethers.hexlify(constructorArgsBytes),
-                    sourceCode: props.contract?.contract.singleFileCode ?? "",
-                    metadata: JSON.stringify(metadata),
-                    name: props.contract?.name ?? "",
-                }),
+                data: JSON.stringify(props.contract),
                 network: network,
                 address: null,
             }),
@@ -140,6 +136,7 @@ const CompiledContractTemplate = (props: CompiledContractProps) => {
                     height: "200px",
                 }}
             ></textarea>
+            <Button onClick={(_e) => props.onDelete()}>Delete this template</Button>
             <Button onClick={(_e) => saveSourceCode()}>Save to</Button>
             <Select
                 variant={"filled"}

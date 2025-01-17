@@ -86,6 +86,11 @@ const Dashboard = () => {
     } catch (e) {
         console.error(e);
     }
+
+    const deleteTemplate = () => {
+        localStorage.removeItem("currentContract");
+        navigate("/");
+    }
     return (
         <div className="main-page" style={{ marginLeft: marginLeft }}>
             <div className="top-header">
@@ -200,7 +205,7 @@ const Dashboard = () => {
                     <Route path="/change_pass" element={<div>{isLoggedIn && <ChangePassScreen />}</div>} />
                     <Route
                         path="/template"
-                        element={<div>{isLoggedIn && <CompiledContractTemplate contract={compiledContract} />}</div>}
+                        element={<div>{isLoggedIn && <CompiledContractTemplate contract={compiledContract} onDelete={deleteTemplate} />}</div>}
                     />
                     <Route path="/contracts" element={<div>{isLoggedIn && <MyContracts></MyContracts>}</div>} />
                     <Route path="/contract/:contractId" element={<div>{isLoggedIn && <CompiledContract />}</div>} />

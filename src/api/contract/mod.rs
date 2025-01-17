@@ -21,7 +21,7 @@ pub async fn get_contract_info_api(
 
     let db = data.db_connection.lock().await;
 
-    match get_contract_by_id(&db, contract_id, user.uid).await {
+    match get_contract_by_id(&*db, contract_id, user.uid).await {
         Ok(contract) => HttpResponse::Ok().json(contract),
         Err(e) => {
             log::error!("Error getting scan info: {}", e);
@@ -72,13 +72,50 @@ pub async fn update_contract_info_api(
 
     let db = data.db_connection.lock().await;
 
-    let mut contract = contract.into_inner();
-    contract.user_id = user.uid;
+    let contract = contract.into_inner();
 
-    match update_contract_data(&db, contract).await {
-        Ok(contr) => HttpResponse::Ok().json(contr),
+    let mut trans = match db.begin().await {
+        Ok(t) => t,
+        Err(e) => {
+            log::error!("Error starting transaction: {}", e);
+            return HttpResponse::InternalServerError().finish();
+        }
+    };
+
+    let mut new_contract_version =
+        match get_contract_by_id(&mut *trans, contract.contract_id, user.uid).await {
+            Ok(Some(contract)) => contract,
+            Ok(None) => {
+                log::error!("Contract not found");
+                return HttpResponse::NotFound().finish();
+            }
+            Err(e) => {
+                log::error!("Error getting scan info: {}", e);
+                return HttpResponse::InternalServerError().finish();
+            }
+        };
+
+    if new_contract_version.deploy_status != DeployStatus::None {
+        log::error!("Contract is not in None state");
+        return HttpResponse::BadRequest()
+            .body("Contract is already sent for deployment and cannot be updated");
+    }
+
+    new_contract_version.data = contract.data;
+    new_contract_version.address = contract.address;
+    new_contract_version.network = contract.network;
+
+    let contr = match update_contract_data(&mut *trans, new_contract_version).await {
+        Ok(contr) => contr,
         Err(e) => {
             log::error!("Error inserting scan info: {}", e);
+            return HttpResponse::InternalServerError().finish();
+        }
+    };
+    match trans.commit().await {
+        Ok(_) => HttpResponse::Ok().json(contr),
+        Err(err) => {
+            log::error!("Error committing transaction: {}", err);
             HttpResponse::InternalServerError().finish()
         }
     }
@@ -109,8 +146,37 @@ pub async fn delete_contract_api(
 
     let db = data.db_connection.lock().await;
 
-    match delete_contract_by_id(&db, contract_id, user.uid).await {
-        Ok(_) => HttpResponse::Ok().finish(),
+    let mut trans = match db.begin().await {
+        Ok(t) => t,
+        Err(e) => {
+            log::error!("Error starting transaction: {}", e);
+            return HttpResponse::InternalServerError().finish();
+        }
+    };
+    let contract = match get_contract_by_id(&mut *trans, contract_id, user.uid).await {
+        Ok(Some(contract)) => contract,
+        Ok(None) => {
+            log::error!("Contract not found");
+            return HttpResponse::NotFound().finish();
+        }
+        Err(e) => {
+            log::error!("Error getting scan info: {}", e);
+            return HttpResponse::InternalServerError().finish();
+        }
+    };
+    if contract.deploy_status != DeployStatus::None {
+        log::error!("Contract is not in None state");
+        return HttpResponse::BadRequest()
+            .body("Contract is already sent for deployment and cannot be deleted");
+    }
+    match delete_contract_by_id(&mut *trans, contract.contract_id, contract.user_id).await {
+        Ok(_) => match trans.commit().await {
+            Ok(_) => HttpResponse::Ok().finish(),
+            Err(e) => {
+                log::error!("Error committing transaction: {}", e);
+                HttpResponse::InternalServerError().finish()
+            }
+        },
         Err(e) => {
             log::error!("Error deleting scan info: {}", e);
             HttpResponse::InternalServerError().finish()

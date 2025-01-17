@@ -30,25 +30,31 @@ export interface ContractCompiledBytecode {
 export interface ContractCompiledEvm {
     bytecode: ContractCompiledBytecode;
 }
+export interface ContractCompiledInt {
+    evm: ContractCompiledEvm;
+    metadata: string;
+    singleFileCode: string;
+}
 export interface ContractCompiled {
     name: string;
-    contract: {
-        evm: ContractCompiledEvm;
-        metadata: string;
-        singleFileCode: string;
-    };
+    constructorArgs: string;
+    contract: ContractCompiledInt;
 }
 
 export interface CompileResponse {
-    contracts?: { [key: string]: { [key: string]: ContractCompiled } };
+    contracts?: { [key: string]: { [key: string]: ContractCompiledInt } };
     errors?: CompileErrors[];
 }
 
+
 export interface ContractSaved {
     contractId: string;
+    created: string;
+    address?: string;
     network: string;
     data: string;
-    address?: string;
-    created: string;
-    deployed: string;
+    deployStatus: string;
+    deployRequested: string | null;
+    deploySent: string | null;
+    deployed: string | null;
 }
