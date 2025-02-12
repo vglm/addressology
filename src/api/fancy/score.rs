@@ -1,3 +1,4 @@
+use crate::api::fancy::ApiMinerInfo;
 use crate::config::get_base_difficulty_price;
 use crate::db::model::FancyScore;
 use crate::db::ops::fancy_get_by_address;
@@ -12,7 +13,7 @@ use serde::{Deserialize, Serialize};
 struct FancyScoreResponse {
     score: FancyScore,
     price: i64,
-    miner: Option<String>,
+    miner_info: Option<ApiMinerInfo>,
     mined: Option<NaiveDateTime>,
 }
 
@@ -33,7 +34,7 @@ pub async fn handle_score_custom(
     HttpResponse::Ok().json(FancyScoreResponse {
         score: score.clone(),
         price: (get_base_difficulty_price() as f64 * score.price_multiplier) as i64,
-        miner: fancy.as_ref().map(|f| f.miner.clone()),
+        miner_info: None,
         mined: fancy.map(|f| f.created),
     })
 }

@@ -394,16 +394,30 @@ async fn main() -> std::io::Result<()> {
                 .unwrap();
 
             let factory = web3::types::Address::from_str(&factory).unwrap();
-            let result = match parse_fancy(salt, factory, miner) {
+            let result = match parse_fancy(salt, factory) {
                 Ok(fancy) => fancy,
                 Err(e) => {
                     log::error!("{}", e);
                     std::process::exit(1);
                 }
             };
+            let mut db_trans = match conn.begin().await {
+                Ok(db) => db,
+                Err(e) => {
+                    log::error!("{}", e);
+                    std::process::exit(1);
+                }
+            };
 
-            println!("{:?}", result);
-            match insert_fancy_obj(&conn, result).await {
+            match insert_fancy_obj(&mut *db_trans, result).await {
+                Ok(_) => (),
+                Err(e) => {
+                    log::error!("{}", e);
+                    std::process::exit(1);
+                }
+            }
+
+            match db_trans.commit().await {
                 Ok(_) => (),
                 Err(e) => {
                     log::error!("{}", e);

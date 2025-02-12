@@ -3,8 +3,8 @@ use crate::api::fancy::score::{handle_get_score_categories, handle_score_custom}
 use crate::api::fancy::tokens::handle_get_user_tokens;
 use crate::api::fancy::{
     handle_fancy_buy_api, handle_fancy_deploy_start, handle_fancy_estimate_total_hash,
-    handle_fancy_new, handle_fancy_new_many, handle_list, handle_list_best_score,
-    handle_list_newest, handle_random,
+    handle_fancy_new, handle_fancy_new_many, handle_fancy_new_many2, handle_list,
+    handle_list_best_score, handle_list_newest, handle_new_job, handle_random,
 };
 use crate::api::oauth::google::{handle_google_callback, handle_login_via_google};
 use crate::api::user::handle_greet;
@@ -35,8 +35,10 @@ pub fn server_api_scope() -> Scope {
     .route("/fancy/list_best_score",        get().to(handle_list_best_score))
     .route("/fancy/new",                    post().to(handle_fancy_new))
     .route("/fancy/new_many",               post().to(handle_fancy_new_many))
+    .route("/fancy/new_many2",              post().to(handle_fancy_new_many2))
     .route("/fancy/buy/{address}",          post().to(handle_fancy_buy_api))
     .route("/fancy/deploy/{contract_id}",   post().to(handle_fancy_deploy_start))
+    .route("/job/new",                      post().to(handle_new_job))
     .route("/contract/compile",             post().to(handle_compile))
     .route("/greet",                        get().to(handle_greet))
     .route("/contract/{contract_id}",       get().to(contract::get_contract_info_api))

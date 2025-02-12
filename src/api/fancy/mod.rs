@@ -2,20 +2,21 @@ pub mod score;
 pub mod tokens;
 
 use crate::api::utils::{extract_url_date_param, extract_url_int_param, extract_url_param};
-use crate::db::model::{DeployStatus, UserDbObj};
+use crate::db::model::{DeployStatus, MinerDbObj, UserDbObj};
 use crate::db::ops::{
-    fancy_get_by_address, fancy_list_all_free, fancy_list_best_score, fancy_list_newest,
-    fancy_update_owner, get_contract_by_id, get_user, insert_fancy_obj, update_contract_data,
-    update_user_tokens, FancyOrderBy,
+    fancy_get_by_address, fancy_get_miner_info, fancy_insert_miner_info, fancy_list_all_free,
+    fancy_list_best_score, fancy_list_newest, fancy_update_owner, get_contract_by_id, get_user,
+    insert_fancy_obj, update_contract_data, update_user_tokens, FancyOrderBy,
 };
 use crate::fancy::parse_fancy;
 use crate::{login_check_and_get, normalize_address, ServerData};
 use actix_session::Session;
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use rand::prelude::SliceRandom;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::str::FromStr;
+use web3::signing::keccak256;
 
 pub async fn handle_random(
     server_data: web::Data<Box<ServerData>>,
@@ -135,7 +136,9 @@ pub struct AddNewData {
     pub miner: String,
     pub factory: String,
     pub address: String,
+    pub job_id: Option<String>,
 }
+
 pub async fn handle_fancy_new_many(
     server_data: web::Data<Box<ServerData>>,
     new_data: web::Json<Vec<AddNewData>>,
@@ -156,6 +159,139 @@ pub async fn handle_fancy_new_many(
         "totalScore": total_score
     }))
 }
+
+#[derive(Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct AddNewDataEntry {
+    pub salt: String,
+    pub factory: String,
+    pub address: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ApiMinerInfo {
+    pub cruncher_ver: String,
+    pub mined_by: String,
+    pub provider_id: Option<String>,
+    pub provider_name: Option<String>,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct AddNewDataMinerInfo {
+    pub cruncher_ver: String,
+    pub mined_by: String,
+    pub provider_id: Option<String>,
+    pub provider_name: Option<String>,
+    pub job_id: Option<String>,
+    pub requestor_id: Option<String>,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct AddNewData2 {
+    pub data: Vec<AddNewDataEntry>,
+    pub miner: AddNewDataMinerInfo,
+}
+
+pub async fn handle_fancy_new_many2(
+    server_data: web::Data<Box<ServerData>>,
+    new_data: web::Json<AddNewData2>,
+) -> HttpResponse {
+    let mut total_score = 0.0;
+    for data in new_data.data.iter() {
+        let new_data = AddNewData {
+            salt: data.salt.clone(),
+            miner: new_data.miner.cruncher_ver.clone(),
+            factory: data.factory.clone(),
+            address: data.address.clone(),
+            job_id: None,
+        };
+        let resp =
+            _handle_fancy_new(server_data.clone(), web::Json(new_data), &mut total_score).await;
+        if !resp.status().is_success() {
+            return resp;
+        }
+    }
+    HttpResponse::Ok().json(json!({
+        "totalScore": total_score
+    }))
+}
+#[derive(Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct AddNewJobData {
+    pub miner: ApiMinerInfo,
+}
+
+pub async fn handle_new_job(
+    server_data: web::Data<Box<ServerData>>,
+    new_data: web::Json<AddNewJobData>,
+) -> HttpResponse {
+    let conn = server_data.db_connection.lock().await;
+    let mut db_trans = match conn.begin().await {
+        Ok(db) => db,
+        Err(e) => {
+            log::error!("{}", e);
+            return HttpResponse::InternalServerError().finish();
+        }
+    };
+
+    let cruncher_ver_hash = keccak256(new_data.miner.cruncher_ver.as_bytes());
+    let mined_by_hash = keccak256(new_data.miner.mined_by.as_bytes());
+    let provider_id_hash = new_data
+        .miner
+        .provider_id
+        .as_ref()
+        .map(|id| keccak256(id.as_bytes()));
+    let provider_name_hash = new_data
+        .miner
+        .provider_name
+        .as_ref()
+        .map(|name| keccak256(name.as_bytes()));
+
+    //xor all
+    let mut xor = [0u8; 32];
+    for i in 0..32 {
+        xor[i] = cruncher_ver_hash[i] ^ mined_by_hash[i];
+        if let Some(id) = provider_id_hash {
+            xor[i] ^= id[i];
+        }
+        if let Some(name) = provider_name_hash {
+            xor[i] ^= name[i];
+        }
+    }
+    let xor = hex::encode(xor);
+
+    let miner_info = match fancy_get_miner_info(&mut *db_trans, &xor).await {
+        Ok(Some(miner_info)) => miner_info,
+        Ok(None) => {
+            let new_miner_info = MinerDbObj {
+                uid: xor,
+                cruncher_ver: new_data.miner.cruncher_ver.clone(),
+                mined_by: new_data.miner.mined_by.clone(),
+                provider_id: new_data.miner.provider_id.clone(),
+                provider_name: new_data.miner.provider_name.clone(),
+            };
+            match fancy_insert_miner_info(&mut *db_trans, new_miner_info).await {
+                Ok(inserted) => inserted,
+                Err(e) => {
+                    log::error!("{}", e);
+                    return HttpResponse::InternalServerError().finish();
+                }
+            }
+        }
+        Err(e) => {
+            log::error!("{}", e);
+            return HttpResponse::InternalServerError().finish();
+        }
+    };
+    //todo implement adding job info
+    //let job_info =
+
+    HttpResponse::Ok().finish()
+}
+
 async fn _handle_fancy_new(
     server_data: web::Data<Box<ServerData>>,
     new_data: web::Json<AddNewData>,
@@ -168,7 +304,7 @@ async fn _handle_fancy_new(
             return HttpResponse::BadRequest().finish();
         }
     };
-    let result = match parse_fancy(new_data.salt.clone(), factory, new_data.miner.clone()) {
+    let result = match parse_fancy(new_data.salt.clone(), factory) {
         Ok(fancy) => fancy,
         Err(e) => {
             log::error!("{}", e);
@@ -191,13 +327,29 @@ async fn _handle_fancy_new(
     }
     let score = result.score;
     let conn = server_data.db_connection.lock().await;
-    match insert_fancy_obj(&conn, result).await {
-        Ok(_) => {
-            *total_score += score;
-            HttpResponse::Ok().json(json!({
-                "totalSore": score
-            }))
+    let mut db_trans = match conn.begin().await {
+        Ok(db) => db,
+        Err(e) => {
+            log::error!("{}", e);
+            std::process::exit(1);
         }
+    };
+
+    //result.job = None;
+
+    match insert_fancy_obj(&mut *db_trans, result).await {
+        Ok(_) => match db_trans.commit().await {
+            Ok(_) => {
+                *total_score += score;
+                HttpResponse::Ok().json(json!({
+                    "totalSore": score
+                }))
+            }
+            Err(e) => {
+                log::error!("{}", e);
+                HttpResponse::InternalServerError().finish()
+            }
+        },
         Err(e) => {
             if e.to_string().contains("UNIQUE constraint failed") {
                 HttpResponse::Ok().body("Already exists")

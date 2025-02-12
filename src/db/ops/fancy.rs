@@ -1,15 +1,18 @@
-use crate::db::model::FancyDbObj;
+use crate::db::model::{FancyDbObj, MinerDbObj};
 use crate::types::DbAddress;
 use chrono::{DateTime, Utc};
 use sqlx::{Executor, Sqlite, SqlitePool};
 
-pub async fn insert_fancy_obj(
-    conn: &SqlitePool,
+pub async fn insert_fancy_obj<'c, E>(
+    conn: E,
     fancy_data: FancyDbObj,
-) -> Result<FancyDbObj, sqlx::Error> {
+) -> Result<FancyDbObj, sqlx::Error>
+where
+    E: Executor<'c, Database = Sqlite>,
+{
     let res = sqlx::query_as::<_, FancyDbObj>(
         r"INSERT INTO fancy
-(address, salt, factory, created, score, miner, owner, price, category)
+(address, salt, factory, created, score, job, owner, price, category)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *;
 ",
     )
@@ -18,7 +21,7 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *;
     .bind(fancy_data.factory)
     .bind(fancy_data.created)
     .bind(fancy_data.score)
-    .bind(&fancy_data.miner)
+    .bind(&fancy_data.job)
     .bind(&fancy_data.owner)
     .bind(fancy_data.price)
     .bind(&fancy_data.category)
@@ -141,4 +144,38 @@ where
             .execute(conn)
             .await?;
     Ok(())
+}
+
+pub async fn fancy_get_miner_info<'c, E>(
+    conn: E,
+    miner_info_uid: &str,
+) -> Result<Option<MinerDbObj>, sqlx::Error>
+where
+    E: Executor<'c, Database = Sqlite>,
+{
+    let res = sqlx::query_as::<_, MinerDbObj>(r"SELECT * FROM miner_info WHERE id = $1;")
+        .bind(miner_info_uid)
+        .fetch_optional(conn)
+        .await?;
+    Ok(res)
+}
+
+pub async fn fancy_insert_miner_info<'c, E>(
+    conn: E,
+    miner_info: MinerDbObj,
+) -> Result<MinerDbObj, sqlx::Error>
+where
+    E: Executor<'c, Database = Sqlite>,
+{
+    let res = sqlx::query_as::<_, MinerDbObj>(
+        r"INSERT INTO miner_info (cruncher_ver, mined_by, provider_id, provider_name)
+VALUES ($1, $2, $3, $4) RETURNING *;",
+    )
+    .bind(&miner_info.cruncher_ver)
+    .bind(&miner_info.mined_by)
+    .bind(&miner_info.provider_id)
+    .bind(&miner_info.provider_name)
+    .fetch_one(conn)
+    .await?;
+    Ok(res)
 }
