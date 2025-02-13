@@ -1,4 +1,4 @@
-use crate::db::model::{FancyDbObj, MinerDbObj};
+use crate::db::model::{FancyDbObj, JobDbObj, MinerDbObj};
 use crate::types::DbAddress;
 use chrono::{DateTime, Utc};
 use sqlx::{Executor, Sqlite, SqlitePool};
@@ -21,7 +21,7 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *;
     .bind(fancy_data.factory)
     .bind(fancy_data.created)
     .bind(fancy_data.score)
-    .bind(&fancy_data.job)
+    .bind(fancy_data.job)
     .bind(&fancy_data.owner)
     .bind(fancy_data.price)
     .bind(&fancy_data.category)
@@ -153,7 +153,7 @@ pub async fn fancy_get_miner_info<'c, E>(
 where
     E: Executor<'c, Database = Sqlite>,
 {
-    let res = sqlx::query_as::<_, MinerDbObj>(r"SELECT * FROM miner_info WHERE id = $1;")
+    let res = sqlx::query_as::<_, MinerDbObj>(r"SELECT * FROM miner_info WHERE uid = $1;")
         .bind(miner_info_uid)
         .fetch_optional(conn)
         .await?;
@@ -168,14 +168,86 @@ where
     E: Executor<'c, Database = Sqlite>,
 {
     let res = sqlx::query_as::<_, MinerDbObj>(
-        r"INSERT INTO miner_info (cruncher_ver, mined_by, provider_id, provider_name)
-VALUES ($1, $2, $3, $4) RETURNING *;",
+        r"INSERT INTO miner_info (uid, prov_name, prov_node_id, prov_reward_addr, prov_extra_info)
+VALUES ($1, $2, $3, $4, $5) RETURNING *;",
     )
-    .bind(&miner_info.cruncher_ver)
-    .bind(&miner_info.mined_by)
-    .bind(&miner_info.provider_id)
-    .bind(&miner_info.provider_name)
+    .bind(&miner_info.uid)
+    .bind(&miner_info.prov_name)
+    .bind(miner_info.prov_node_id)
+    .bind(miner_info.prov_reward_addr)
+    .bind(&miner_info.prov_extra_info)
     .fetch_one(conn)
     .await?;
     Ok(res)
+}
+
+pub async fn fancy_get_job_info<'c, E>(conn: E, uid: &str) -> Result<JobDbObj, sqlx::Error>
+where
+    E: Executor<'c, Database = Sqlite>,
+{
+    let res = sqlx::query_as::<_, JobDbObj>(r"SELECT * FROM job_info WHERE uid = $1;")
+        .bind(uid)
+        .fetch_one(conn)
+        .await?;
+    Ok(res)
+}
+
+pub async fn fancy_insert_job_info<'c, E>(
+    conn: E,
+    job_info: JobDbObj,
+) -> Result<JobDbObj, sqlx::Error>
+where
+    E: Executor<'c, Database = Sqlite>,
+{
+    let res = sqlx::query_as::<_, JobDbObj>(
+        r"INSERT INTO job_info (uid, cruncher_ver, started_at, finished_at, requestor_id, hashes_accepted, hashes_reported, cost_reported, miner, job_extra_info)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *;",
+    )
+        .bind(&job_info.uid)
+        .bind(&job_info.cruncher_ver)
+        .bind(job_info.started_at)
+        .bind(job_info.finished_at)
+        .bind(job_info.requestor_id)
+        .bind(job_info.hashes_accepted)
+        .bind(job_info.hashes_reported)
+        .bind(job_info.cost_reported)
+        .bind(&job_info.miner)
+        .bind(&job_info.job_extra_info)
+        .fetch_one(conn)
+        .await?;
+    Ok(res)
+}
+
+pub async fn fancy_update_job<'c, E>(
+    conn: E,
+    job_uid: &str,
+    hashes_accepted: f64,
+    hashes_reported: f64,
+    cost_reported: f64,
+) -> Result<(), sqlx::Error>
+where
+    E: Executor<'c, Database = Sqlite>,
+{
+    let _res = sqlx::query(
+        r"UPDATE job_info SET hashes_accepted = $1, hashes_reported = $2, cost_reported = $3 WHERE uid = $4;",
+    )
+    .bind(hashes_accepted)
+    .bind(hashes_reported)
+    .bind(cost_reported)
+    .bind(job_uid)
+    .execute(conn)
+    .await?;
+    Ok(())
+}
+
+pub async fn fancy_finish_job<'c, E>(conn: E, job_uid: &str) -> Result<(), sqlx::Error>
+where
+    E: Executor<'c, Database = Sqlite>,
+{
+    let _res = sqlx::query(r"UPDATE job_info SET finished_at = $1 WHERE uid = $2;")
+        .bind(Utc::now().naive_utc())
+        .bind(job_uid)
+        .execute(conn)
+        .await?;
+    Ok(())
 }

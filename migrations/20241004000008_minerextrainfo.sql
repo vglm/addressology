@@ -1,20 +1,21 @@
 CREATE TABLE miner_info (
     uid TEXT NOT NULL,
-    cruncher_ver TEXT NOT NULL,
-    mined_by TEXT NOT NULL,
-    provider_id TEXT NULL,
-    provider_name TEXT NULL,
-    extra_info TEXT NULL,
+    prov_node_id TEXT NULL,
+    prov_reward_addr TEXT NULL,
+    prov_name TEXT NULL,
+    prov_extra_info TEXT NULL,
     CONSTRAINT miner_info_pk PRIMARY KEY (uid)
 ) STRICT;
 
 CREATE TABLE job_info (
     uid TEXT NOT NULL,
+    cruncher_ver TEXT NOT NULL,
     started_at TEXT NOT NULL,
-    finished_at TEXT NOT NULL,
+    finished_at TEXT NULL,
     requestor_id TEXT NULL,
-    hashes_computed REAL NOT NULL,
-    glm_spent REAL NOT NULL,
+    hashes_reported REAL NOT NULL,
+    hashes_accepted REAL NOT NULL,
+    cost_reported REAL NOT NULL,
     miner TEXT NULL,
     job_extra_info TEXT NULL,
     CONSTRAINT job_info_pk PRIMARY KEY (uid),
@@ -41,10 +42,3 @@ INSERT INTO fancy (address, salt, factory, created, score, owner, price, categor
 SELECT address, salt, factory, created, score, owner, price, category
 FROM fancy_old;
 DROP TABLE fancy_old;
-
-CREATE INDEX miner_cruncher_ver_idx ON miner_info (cruncher_ver);
-CREATE INDEX miner_mined_by_idx ON miner_info (mined_by);
-CREATE INDEX miner_provider_id_idx ON miner_info (provider_id);
-CREATE INDEX miner_provider_name_idx ON miner_info (provider_name);
-
-CREATE INDEX miner_total_idx ON miner_info (cruncher_ver, mined_by, provider_id, provider_name, extra_info);

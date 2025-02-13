@@ -192,13 +192,13 @@ pub fn snake_combinations(snake: i64, total: u64) -> f64 {
         let curr_comb =
             16.0 * combinations(total as i64, i as i64) * 15.0f64.powf(total as f64 - i as f64);
         combinations_total += curr_comb;
-        println!(
+        /*println!(
             "combinations_total: {} {} {} {}",
             i,
             curr_comb,
             combinations_total,
             total_combinations(total as f64) / combinations_total
-        );
+        );*/
     }
 
     total_combinations(total as f64) / combinations_total

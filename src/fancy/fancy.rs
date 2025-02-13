@@ -8,10 +8,10 @@ use crate::types::DbAddress;
 use web3::types::Address;
 
 pub fn parse_fancy(salt: String, factory: Address) -> Result<FancyDbObj, AddressologyError> {
-    let censor = censor::Standard + censor::Zealous + censor::Sex;
+    /*let censor = censor::Standard + censor::Zealous + censor::Sex;
 
     //get rid of any weird characters from miner string
-    /*let provider_name_censored = miner_unfiltered.provider_name.map(|s| {
+    let provider_name_censored = miner_unfiltered.provider_name.map(|s| {
             let provider_name_filtered = s.chars()
                 .filter(|c| c.is_ascii_alphanumeric() || *c == '.' || *c == '-' || *c == '_' || *c == ' ')
                 .take(20)

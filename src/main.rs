@@ -213,8 +213,6 @@ enum Commands {
         factory: String,
         #[arg(short, long)]
         salt: String,
-        #[arg(short, long)]
-        miner: String,
     },
     /// Start web server
     Server {
@@ -384,11 +382,7 @@ async fn main() -> std::io::Result<()> {
             }
             Ok(())
         }
-        Commands::AddFancyAddress {
-            factory,
-            salt,
-            miner,
-        } => {
+        Commands::AddFancyAddress { factory, salt } => {
             let conn = create_sqlite_connection(Some(&PathBuf::from(args.db)), None, false, true)
                 .await
                 .unwrap();

@@ -69,7 +69,7 @@ pub struct FancyDbObj {
     pub owner: Option<String>,
     pub price: i64,
     pub category: String,
-    pub job: Option<i64>,
+    pub job: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -84,21 +84,23 @@ pub struct ContractCreateFromApi {
 #[serde(rename_all = "camelCase")]
 pub struct MinerDbObj {
     pub uid: String,
-    pub cruncher_ver: String,
-    pub mined_by: String,
-    pub provider_id: Option<String>,
-    pub provider_name: Option<String>,
+    pub prov_node_id: Option<DbAddress>,
+    pub prov_reward_addr: Option<DbAddress>,
+    pub prov_name: Option<String>,
+    pub prov_extra_info: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, sqlx::FromRow, PartialEq, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct JobDbObj {
     pub uid: String,
+    pub cruncher_ver: String,
     pub started_at: NaiveDateTime,
-    pub finished_at: NaiveDateTime,
-    pub requestor_id: Option<String>,
-    pub hashes_computed: f64,
-    pub glm_spent: f64,
-    pub miner_id: Option<i64>,
+    pub finished_at: Option<NaiveDateTime>,
+    pub requestor_id: Option<DbAddress>,
+    pub hashes_reported: f64,
+    pub hashes_accepted: f64,
+    pub cost_reported: f64,
+    pub miner: String,
     pub job_extra_info: Option<String>,
 }
