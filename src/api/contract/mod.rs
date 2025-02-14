@@ -1,4 +1,5 @@
 mod api;
+pub mod compile;
 
 use crate::db::model::{ContractCreateFromApi, ContractDbObj, DeployStatus, UserDbObj};
 use crate::db::ops::{

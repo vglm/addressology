@@ -1,0 +1,10 @@
+.address-card-address-entry-box {
+    padding: 0.2em 1em;
+}
+.address-card-address-entry {
+    color: darkgoldenrod;
+    font-weight: bold;
+    font-size: 1.2em;
+    letter-spacing: 1px;
+    font-family: Consolas, "Courier New", monospace;
+}

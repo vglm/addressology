@@ -51,7 +51,6 @@ pub async fn handle_fancy_deploy(
         ("ADDRESS", format!("{:#x}", fancy.address.addr())),
         ("FACTORY", format!("{:#x}", fancy.factory.addr())),
         ("SALT", fancy.salt.clone()),
-        ("MINER", fancy.miner.clone()),
         ("BYTECODE", total_bytes.clone()),
     ];
 

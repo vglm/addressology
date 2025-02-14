@@ -31,8 +31,6 @@ pub fn parse_fancy(
         created: chrono::Utc::now().naive_utc(),
         score: 0.0,
         miner: miner_censored,
-        owner: None,
-        price: 0,
     })
 }
 

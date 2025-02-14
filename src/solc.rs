@@ -53,7 +53,7 @@ pub async fn compile_solc(
         if cfg!(target_os = "linux") {
             "/addressology/bin/solc_0.8.28"
         } else if cfg!(target_os = "windows") {
-            "solc-windows.exe"
+            ".\\solc-windows.exe"
         } else {
             return Err(err_custom_create!(
                 "Unsupported solidity version: {}",
