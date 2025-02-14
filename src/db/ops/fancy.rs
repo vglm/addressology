@@ -16,17 +16,17 @@ where
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *;
 ",
     )
-    .bind(fancy_data.address)
-    .bind(&fancy_data.salt)
-    .bind(fancy_data.factory)
-    .bind(fancy_data.created)
-    .bind(fancy_data.score)
-    .bind(fancy_data.job)
-    .bind(&fancy_data.owner)
-    .bind(fancy_data.price)
-    .bind(&fancy_data.category)
-    .fetch_one(conn)
-    .await?;
+        .bind(fancy_data.address)
+        .bind(&fancy_data.salt)
+        .bind(fancy_data.factory)
+        .bind(fancy_data.created)
+        .bind(fancy_data.score)
+        .bind(fancy_data.job)
+        .bind(&fancy_data.owner)
+        .bind(fancy_data.price)
+        .bind(&fancy_data.category)
+        .fetch_one(conn)
+        .await?;
     Ok(res)
 }
 
@@ -65,18 +65,18 @@ pub async fn fancy_list(
             ORDER BY {} DESC LIMIT $1;",
             order_by
         )
-        .as_str(),
+            .as_str(),
     )
-    .bind(limit)
-    .bind(category.unwrap_or("%".to_string()))
-    .bind(
-        since
-            .map(|s| s.format("%Y-%m-%d %H:%M:%S").to_string())
-            .unwrap_or("2000-01-01 00:00:00".to_string()),
-    )
-    .bind(order_by)
-    .fetch_all(conn)
-    .await?;
+        .bind(limit)
+        .bind(category.unwrap_or("%".to_string()))
+        .bind(
+            since
+                .map(|s| s.format("%Y-%m-%d %H:%M:%S").to_string())
+                .unwrap_or("2000-01-01 00:00:00".to_string()),
+        )
+        .bind(order_by)
+        .fetch_all(conn)
+        .await?;
     Ok(res)
 }
 
@@ -156,13 +156,13 @@ where
         r"INSERT INTO miner_info (uid, prov_name, prov_node_id, prov_reward_addr, prov_extra_info)
 VALUES ($1, $2, $3, $4, $5) RETURNING *;",
     )
-    .bind(&miner_info.uid)
-    .bind(&miner_info.prov_name)
-    .bind(miner_info.prov_node_id)
-    .bind(miner_info.prov_reward_addr)
-    .bind(&miner_info.prov_extra_info)
-    .fetch_one(conn)
-    .await?;
+        .bind(&miner_info.uid)
+        .bind(&miner_info.prov_name)
+        .bind(miner_info.prov_node_id)
+        .bind(miner_info.prov_reward_addr)
+        .bind(&miner_info.prov_extra_info)
+        .fetch_one(conn)
+        .await?;
     Ok(res)
 }
 
@@ -216,12 +216,12 @@ where
     let _res = sqlx::query(
         r"UPDATE job_info SET hashes_accepted = $1, hashes_reported = $2, cost_reported = $3 WHERE uid = $4;",
     )
-    .bind(hashes_accepted)
-    .bind(hashes_reported)
-    .bind(cost_reported)
-    .bind(job_uid)
-    .execute(conn)
-    .await?;
+        .bind(hashes_accepted)
+        .bind(hashes_reported)
+        .bind(cost_reported)
+        .bind(job_uid)
+        .execute(conn)
+        .await?;
     Ok(())
 }
 

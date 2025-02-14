@@ -291,10 +291,10 @@ async fn main() -> std::io::Result<()> {
                     .route("/service/update", web::post().to(update::push_update))
                     .service(server_api_scope())
             })
-            .workers(threads.unwrap_or(std::thread::available_parallelism().unwrap().into()))
-            .bind(addr)?
-            .run()
-            .await
+                .workers(threads.unwrap_or(std::thread::available_parallelism().unwrap().into()))
+                .bind(addr)?
+                .run()
+                .await
         }
         Commands::ScoreFancy {} => {
             let conn = create_sqlite_connection(Some(&PathBuf::from(args.db)), None, false, true)
@@ -325,7 +325,7 @@ async fn main() -> std::io::Result<()> {
                         new_price,
                         &score.category,
                     )
-                    .await
+                        .await
                     {
                         Ok(_) => (),
                         Err(e) => {
@@ -347,8 +347,8 @@ async fn main() -> std::io::Result<()> {
                 DeployStatus::Requested,
                 network,
             )
-            .await
-            .unwrap();
+                .await
+                .unwrap();
 
             if let Some(contract) = contracts.first() {
                 log::info!("Processing contract: {:#?}", contract);

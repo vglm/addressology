@@ -1,8 +1,3 @@
-mod contract;
-
-pub use contract::*;
-use std::collections::BTreeMap;
-
 use crate::types::DbAddress;
 use chrono::NaiveDateTime;
 
@@ -39,25 +34,6 @@ pub struct OauthStageDbObj {
     pub created_at: DateTime<Utc>,
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Default)]
-pub struct FancyScoreEntry {
-    pub category: FancyScoreCategory,
-    pub score: f64,
-    pub difficulty: f64,
-}
-
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Default)]
-#[serde(rename_all = "camelCase")]
-pub struct FancyScore {
-    pub address_mixed_case: String,
-    pub address_lower_case: String,
-    pub address_short_etherscan: String,
-    pub scores: BTreeMap<String, FancyScoreEntry>,
-    pub total_score: f64,
-    pub price_multiplier: f64,
-    pub category: String,
-}
-
 #[derive(Serialize, Deserialize, sqlx::FromRow, PartialEq, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct FancyDbObj {
@@ -66,12 +42,21 @@ pub struct FancyDbObj {
     pub factory: DbAddress,
     pub created: NaiveDateTime,
     pub score: f64,
-    pub owner: Option<String>,
-    pub price: i64,
-    pub category: String,
-    pub job: Option<String>,
+    pub miner: String,
 }
 
+#[derive(Serialize, Deserialize, sqlx::FromRow, PartialEq, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ContractDbObj {
+    pub contract_id: String,
+    pub user_id: String,
+    pub created: NaiveDateTime,
+    pub address: Option<String>,
+    pub network: String,
+    pub data: String,
+    pub tx: Option<String>,
+    pub deployed: Option<NaiveDateTime>,
+}
 #[derive(Serialize, Deserialize, sqlx::FromRow, PartialEq, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct FancyProviderDbObj {
@@ -95,29 +80,4 @@ pub struct ContractCreateFromApi {
     pub address: Option<String>,
     pub network: String,
     pub data: String,
-}
-
-#[derive(Serialize, Deserialize, sqlx::FromRow, PartialEq, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct MinerDbObj {
-    pub uid: String,
-    pub prov_node_id: Option<DbAddress>,
-    pub prov_reward_addr: Option<DbAddress>,
-    pub prov_name: Option<String>,
-    pub prov_extra_info: Option<String>,
-}
-
-#[derive(Serialize, Deserialize, sqlx::FromRow, PartialEq, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct JobDbObj {
-    pub uid: String,
-    pub cruncher_ver: String,
-    pub started_at: NaiveDateTime,
-    pub finished_at: Option<NaiveDateTime>,
-    pub requestor_id: Option<DbAddress>,
-    pub hashes_reported: f64,
-    pub hashes_accepted: f64,
-    pub cost_reported: f64,
-    pub miner: String,
-    pub job_extra_info: Option<String>,
 }

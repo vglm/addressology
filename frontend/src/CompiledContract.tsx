@@ -13,7 +13,6 @@ import InputParameters from "./InputParameters";
 const CompiledContract = () => {
     const [contractDetails, setContractDetails] = useState<ContractSaved | null>(null);
     const [contractName, setContractName] = useState("");
-    const [network, setNetwork] = useState("holesky");
     const [networkCopyTo, setNetworkCopyTo] = useState("holesky");
 
     const [address, setAddress] = useState<string | null>(null);
@@ -33,7 +32,6 @@ const CompiledContract = () => {
 
         const data: ContractCompiled = JSON.parse(contract.data);
 
-        setNetwork(contract.network);
         setBytecode(data.contract.evm.bytecode.object);
         setContractName(data.name);
         setConstructorArgs(data.constructorArgs);
@@ -203,18 +201,6 @@ const CompiledContract = () => {
                 <Button onClick={(_e) => copyContract()}>Copy to</Button>
                 <Button onClick={(_e) => saveChanges()}>Save changes</Button>
             </div>
-            <Select
-                variant={"filled"}
-                value={network}
-                onChange={(e) => setNetwork(e.target.value)}
-                style={{ width: "100px" }}
-            >
-                {networks.map((network) => (
-                    <MenuItem key={network} value={network}>
-                        {network}
-                    </MenuItem>
-                ))}
-            </Select>
             <InputParameters
                 abi={JSON.stringify(metadata.output.abi)}
                 constructorArgs={constructorArgs}

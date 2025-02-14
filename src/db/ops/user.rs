@@ -11,11 +11,11 @@ pub async fn insert_oauth_stage(
 VALUES ($1, $2, $3) RETURNING *;
 ",
     )
-    .bind(&oauth_data.csrf_state)
-    .bind(&oauth_data.pkce_code_verifier)
-    .bind(oauth_data.created_at)
-    .fetch_one(conn)
-    .await?;
+        .bind(&oauth_data.csrf_state)
+        .bind(&oauth_data.pkce_code_verifier)
+        .bind(oauth_data.created_at)
+        .fetch_one(conn)
+        .await?;
     Ok(res)
 }
 
@@ -26,9 +26,9 @@ pub async fn get_and_remove_oauth_stage(
     let res = sqlx::query_as::<_, OauthStageDbObj>(
         r"DELETE FROM oauth_stage WHERE csrf_state = $1 RETURNING *;",
     )
-    .bind(csrf_state)
-    .fetch_optional(conn)
-    .await?;
+        .bind(csrf_state)
+        .fetch_optional(conn)
+        .await?;
     Ok(res)
 }
 
@@ -47,16 +47,16 @@ pub async fn insert_user(conn: &SqlitePool, user: &UserDbObj) -> Result<UserDbOb
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *;
 ",
     )
-    .bind(&user.uid)
-    .bind(&user.email)
-    .bind(&user.pass_hash)
-    .bind(user.created_date)
-    .bind(user.last_pass_change)
-    .bind(user.allow_pass_login)
-    .bind(user.allow_google_login)
-    .bind(user.tokens)
-    .fetch_one(conn)
-    .await?;
+        .bind(&user.uid)
+        .bind(&user.email)
+        .bind(&user.pass_hash)
+        .bind(user.created_date)
+        .bind(user.last_pass_change)
+        .bind(user.allow_pass_login)
+        .bind(user.allow_google_login)
+        .bind(user.tokens)
+        .fetch_one(conn)
+        .await?;
     Ok(res)
 }
 
@@ -68,11 +68,11 @@ pub async fn save_reset_token(
     let _res = sqlx::query(
         r"UPDATE users SET set_pass_token = $1, set_pass_token_date = $2 WHERE email = $3",
     )
-    .bind(reset_token)
-    .bind(chrono::Utc::now())
-    .bind(email)
-    .execute(conn)
-    .await?;
+        .bind(reset_token)
+        .bind(chrono::Utc::now())
+        .bind(email)
+        .execute(conn)
+        .await?;
     Ok(())
 }
 
@@ -89,10 +89,10 @@ set_pass_token_date = null
 WHERE email = $2
 ",
     )
-    .bind(new_pass_hash)
-    .bind(email)
-    .execute(conn)
-    .await?;
+        .bind(new_pass_hash)
+        .bind(email)
+        .execute(conn)
+        .await?;
     Ok(())
 }
 
@@ -113,18 +113,18 @@ tokens = $10
 WHERE id = $1
 ",
     )
-    .bind(&user.uid)
-    .bind(&user.email)
-    .bind(&user.pass_hash)
-    .bind(user.created_date)
-    .bind(user.last_pass_change)
-    .bind(&user.set_pass_token)
-    .bind(user.set_pass_token_date)
-    .bind(user.allow_pass_login)
-    .bind(user.allow_google_login)
-    .bind(user.tokens)
-    .execute(conn)
-    .await?;
+        .bind(&user.uid)
+        .bind(&user.email)
+        .bind(&user.pass_hash)
+        .bind(user.created_date)
+        .bind(user.last_pass_change)
+        .bind(&user.set_pass_token)
+        .bind(user.set_pass_token_date)
+        .bind(user.allow_pass_login)
+        .bind(user.allow_google_login)
+        .bind(user.tokens)
+        .execute(conn)
+        .await?;
     Ok(user.clone())
 }
 
