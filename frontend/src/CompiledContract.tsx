@@ -8,7 +8,11 @@ import { Button, MenuItem, Select } from "@mui/material";
 import { ContractCompiled, ContractSaved } from "./model/Contract";
 import "./CompiledContract.css";
 import { useParams } from "react-router-dom";
-import InputParameters, { encodeConstructorParameters } from "./InputParameters";
+import InputParameters, {
+    decodeConstructorParameters,
+    encodeConstructorDefaults,
+    encodeConstructorParameters
+} from "./InputParameters";
 import { Fancy } from "./model/Fancy";
 
 const CompiledContract = () => {
@@ -69,9 +73,31 @@ const CompiledContract = () => {
     };
 
     useEffect(() => {
+        if (contractDetails) {
+            try {
+                console.log("Trying to decode constructor parameters");
+                const bytesLike = '0x' + constructorBinary;
+                decodeConstructorParameters(JSON.stringify(metadata.output.abi), bytesLike);
+            } catch (e) {
+                console.error("Error decoding constructor parameters, setting defaults:", e);
+                const defaults = encodeConstructorDefaults(JSON.stringify(metadata.output.abi));
+                try {
+                    const bytesLike = '0x' + defaults;
+                    decodeConstructorParameters(JSON.stringify(metadata.output.abi), bytesLike);
+                    setConstructorBinary(defaults);
+                } catch (e) {
+                    console.error("Error decoding defaults, setting empty");
+                    setConstructorBinary("");
+                }
+            }
+        }
+    }, [contractDetails]);
+
+    useEffect(() => {
         getContractDetails().then();
 
         getNetworks().then(setNetworks);
+
     }, [updateToken]);
 
     const deploySourceCode = async () => {
@@ -251,6 +277,7 @@ const CompiledContract = () => {
                 abi={JSON.stringify(metadata.output.abi)}
                 constructorArgs={constructorArgs}
                 setConstructorArgs={setConstructorArgs2}
+                constructorBinary={constructorBinary}
             ></InputParameters>
             <Button onClick={(_e) => deploySourceCode()}>Deploy</Button>
             <div style={{ height: 300 }}>Empty</div>
