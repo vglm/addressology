@@ -127,7 +127,7 @@ const InputParameters = (props: InputParametersProps) => {
         }
     };
 
-    let decodedData = null;
+    let decodedData: null | ethers.Result = null;
     try {
         decodedData = decodeConstructorParameters(props.abi, "0x" + constrBinary);
     } catch (e) {
@@ -153,12 +153,13 @@ const InputParameters = (props: InputParametersProps) => {
                         <th>Value</th>
                     </tr>
                     {constructorArgs?.inputs.map((input, idx) => {
+                        const val = decodedData ? decodedData[idx] : "";
                         return (
                             <InputParameter
                                 key={input.name}
                                 name={input.name}
                                 type={input.type}
-                                value={decodedData[idx]}
+                                value={val}
                                 setValue={(value) => updateInput(input.name, value)}
                             />
                         );
