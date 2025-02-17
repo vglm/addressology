@@ -11,7 +11,6 @@ import { useParams } from "react-router-dom";
 import InputParameters, {
     decodeConstructorParameters,
     encodeConstructorDefaults,
-    encodeConstructorParameters
 } from "./InputParameters";
 import { Fancy } from "./model/Fancy";
 
@@ -21,7 +20,6 @@ const CompiledContract = () => {
     const [networkCopyTo, setNetworkCopyTo] = useState("holesky");
 
     const [availableAddresses, setAvailableAddresses] = useState<Fancy[]>([]);
-    const [constructorArgs, setConstructorArgs] = useState("");
     const [networks, setNetworks] = useState<string[]>([]);
     const [bytecode, setBytecode] = useState<string | null>(null);
     const [metadata, setMetadata] = useState<any | null>(null);
@@ -30,17 +28,6 @@ const CompiledContract = () => {
     const [updateToken, setUpdateToken] = useState(0);
 
     const [constructorBinary, setConstructorBinary] = useState<string>("");
-
-    const setConstructorArgs2 = (args: string) => {
-        let binaryFromArgs = "";
-        setConstructorArgs(args);
-        try {
-            binaryFromArgs = encodeConstructorParameters(JSON.stringify(metadata.output.abi), args);
-            setConstructorBinary(binaryFromArgs);
-        } catch (e) {
-            console.error(e);
-        }
-    };
 
     const getContractDetails = async () => {
         const response = await backendFetch(`/api/contract/${contractId}`, {
@@ -76,13 +63,13 @@ const CompiledContract = () => {
         if (contractDetails) {
             try {
                 console.log("Trying to decode constructor parameters");
-                const bytesLike = '0x' + constructorBinary;
+                const bytesLike = "0x" + constructorBinary;
                 decodeConstructorParameters(JSON.stringify(metadata.output.abi), bytesLike);
             } catch (e) {
                 console.error("Error decoding constructor parameters, setting defaults:", e);
                 const defaults = encodeConstructorDefaults(JSON.stringify(metadata.output.abi));
                 try {
-                    const bytesLike = '0x' + defaults;
+                    const bytesLike = "0x" + defaults;
                     decodeConstructorParameters(JSON.stringify(metadata.output.abi), bytesLike);
                     setConstructorBinary(defaults);
                 } catch (e) {
@@ -97,7 +84,6 @@ const CompiledContract = () => {
         getContractDetails().then();
 
         getNetworks().then(setNetworks);
-
     }, [updateToken]);
 
     const deploySourceCode = async () => {
@@ -229,6 +215,11 @@ const CompiledContract = () => {
                 }}
             />
             Constructor binary data
+            <Button
+                onClick={(_e) => setConstructorBinary(encodeConstructorDefaults(JSON.stringify(metadata.output.abi)))}
+            >
+                Set defaults
+            </Button>
             <textarea
                 value={constructorBinary}
                 onChange={(e) => setConstructorBinary(e.target.value)}
@@ -275,9 +266,8 @@ const CompiledContract = () => {
             </div>
             <InputParameters
                 abi={JSON.stringify(metadata.output.abi)}
-                constructorArgs={constructorArgs}
-                setConstructorArgs={setConstructorArgs2}
                 constructorBinary={constructorBinary}
+                setConstructorBinary={setConstructorBinary}
             ></InputParameters>
             <Button onClick={(_e) => deploySourceCode()}>Deploy</Button>
             <div style={{ height: 300 }}>Empty</div>

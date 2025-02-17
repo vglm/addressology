@@ -1,12 +1,11 @@
-import React, { useEffect, useState } from "react";
-import {BytesLike, ConstructorFragment, ethers} from "ethers";
+import React, { useMemo } from "react";
+import { BytesLike, ethers } from "ethers";
 import InputParameter from "./InputParameter";
 
 interface InputParametersProps {
     abi: string;
-    constructorArgs: string;
     constructorBinary: string;
-    setConstructorArgs: (args: string) => void;
+    setConstructorBinary: (binary: string) => void;
 }
 
 function extractConstructorDefinitionFromAbi(abiStr: string) {
@@ -69,36 +68,18 @@ export function encodeConstructorParameters(abiStr: string, argStr: string) {
 }
 
 const InputParameters = (props: InputParametersProps) => {
-    const [constrBinary, setConstrBinary] = useState<string>(props.constructorBinary);
-    const [constructorArgs, setConstructorArgs] = useState<ConstructorFragment | null>(null);
+    const constructorAbi = useMemo(() => {
+        return extractConstructorDefinitionFromAbi(props.abi);
+    }, [props.abi]);
 
-    useEffect(() => {
-        setConstructorArgs(extractConstructorDefinitionFromAbi(props.abi));
-        updateConstructorArgs();
-    }, []);
-
-    const updateConstructorArgs = () => {
-        const newArgs = [];
-        const splitArgs = props.constructorArgs.split(",");
-        const nextIdx = 0;
-        for (const _input of constructorArgs?.inputs ?? []) {
-            newArgs.push(props.constructorArgs);
-            if (nextIdx < splitArgs.length) {
-                newArgs.push(splitArgs[nextIdx]);
-            }
-        }
-        const binary = [];
-        for (const arg of newArgs) {
-            binary.push(ethers.hexlify(ethers.toUtf8Bytes(arg)));
-        }
-    };
+    const constrBinary = props.constructorBinary;
 
     const updateInput = (name: string, value: string) => {
         const newArgs = [];
         const params = [];
         decodedData = decodeConstructorParameters(props.abi, "0x" + constrBinary);
         let idx = 0;
-        for (const input of constructorArgs?.inputs ?? []) {
+        for (const input of constructorAbi.inputs ?? []) {
             params.push(input);
             if (input.name === name) {
                 newArgs.push(value);
@@ -121,7 +102,7 @@ const InputParameters = (props: InputParametersProps) => {
         try {
             decodeConstructorParameters(props.abi, "0x" + binary.join(""));
             //if decoding succeeded, update the binary
-            setConstrBinary(binary.join(""));
+            props.setConstructorBinary(binary.join(""));
         } catch (e) {
             return;
         }
@@ -132,11 +113,11 @@ const InputParameters = (props: InputParametersProps) => {
         decodedData = decodeConstructorParameters(props.abi, "0x" + constrBinary);
     } catch (e) {
         if (!decodedData) {
-            return <div>Failed to decode data</div>
+            return <div>Failed to decode data</div>;
         }
     }
-    if (decodedData.length != constructorArgs?.inputs.length) {
-        return <div>Invalid number of arguments</div>
+    if (decodedData.length != constructorAbi.inputs.length) {
+        return <div>Invalid number of arguments</div>;
     }
 
     return (
@@ -145,25 +126,29 @@ const InputParameters = (props: InputParametersProps) => {
 
             <div>
                 <h2>Constructor Arguments</h2>
-   <div>{constrBinary}</div>
+                <div>{constrBinary}</div>
                 <table>
-                    <tr>
-                        <th>Name</th>
-                        <th>Type</th>
-                        <th>Value</th>
-                    </tr>
-                    {constructorArgs?.inputs.map((input, idx) => {
-                        const val = decodedData ? decodedData[idx] : "";
-                        return (
-                            <InputParameter
-                                key={input.name}
-                                name={input.name}
-                                type={input.type}
-                                value={val}
-                                setValue={(value) => updateInput(input.name, value)}
-                            />
-                        );
-                    })}
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Type</th>
+                            <th>Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {constructorAbi.inputs.map((input, idx) => {
+                            const val = decodedData ? decodedData[idx] : "";
+                            return (
+                                <InputParameter
+                                    key={input.name}
+                                    name={input.name}
+                                    type={input.type}
+                                    value={val}
+                                    setValue={(value) => updateInput(input.name, value)}
+                                />
+                            );
+                        })}
+                    </tbody>
                 </table>
             </div>
         </div>
