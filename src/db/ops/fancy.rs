@@ -4,7 +4,7 @@ use crate::db::model::{
 };
 use crate::types::DbAddress;
 use chrono::{DateTime, Utc};
-use sqlx::{Executor, Sqlite, SqlitePool};
+use sqlx::{Executor, Sqlite, SqlitePool, Transaction};
 
 pub async fn insert_fancy_obj<'c, E>(
     conn: E,
@@ -87,21 +87,16 @@ where
     Ok(res)
 }
 
-//@todo add public key base
-#[allow(dead_code)]
-pub async fn get_or_insert_public_key<'c, E>(
-    conn: E,
+pub async fn get_or_insert_public_key(
+    conn: &mut Transaction<'_, Sqlite>,
     public_key_base: &str,
-) -> Result<PublicKeyBaseDbObject, sqlx::Error>
-where
-    E: Executor<'c, Database = Sqlite>,
-{
+) -> Result<PublicKeyBaseDbObject, sqlx::Error> {
     //select first
     let res = sqlx::query_as::<_, PublicKeyBaseDbObject>(
         r"SELECT * FROM public_key_base WHERE hex = $1;",
     )
     .bind(public_key_base)
-    .fetch_optional(conn)
+    .fetch_optional(&mut **conn)
     .await?;
 
     if let Some(pk) = res {
@@ -113,25 +108,22 @@ where
         .bind(uuid::Uuid::new_v4().to_string())
         .bind(public_key_base)
         .bind(Utc::now().naive_utc())
-        .fetch_one(conn)
+        .fetch_one(&mut **conn)
         .await?;
         Ok(res)
     }
 }
 
-pub async fn get_or_insert_factory<'c, E>(
-    conn: E,
+pub async fn get_or_insert_factory(
+    conn: &mut Transaction<'_, Sqlite>,
     factory_address: DbAddress,
-) -> Result<ContractFactoryDbObject, sqlx::Error>
-where
-    E: Executor<'c, Database = Sqlite>,
-{
+) -> Result<ContractFactoryDbObject, sqlx::Error> {
     //select first
     let res = sqlx::query_as::<_, ContractFactoryDbObject>(
         r"SELECT * FROM contract_factory WHERE address = $1;",
     )
     .bind(factory_address)
-    .fetch_optional(conn)
+    .fetch_optional(&mut **conn)
     .await?;
 
     if let Some(pk) = res {
@@ -143,7 +135,7 @@ where
         .bind(uuid::Uuid::new_v4().to_string())
         .bind(factory_address)
         .bind(Utc::now().naive_utc())
-        .fetch_one(conn)
+        .fetch_one(&mut **conn)
         .await?;
         Ok(res)
     }

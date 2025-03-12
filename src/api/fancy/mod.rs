@@ -5,8 +5,14 @@ use crate::api::contract::api::login_check_fn;
 use crate::api::utils::{
     extract_url_bool_param, extract_url_date_param, extract_url_int_param, extract_url_param,
 };
-use crate::db::model::{ContractAddressDbObj, ContractFactoryDbObject, DeployStatus, JobDbObj, MinerDbObj, UserDbObj};
-use crate::db::ops::{fancy_finish_job, fancy_get_by_address, fancy_get_job_info, fancy_get_miner_info, fancy_insert_job_info, fancy_insert_miner_info, fancy_list, fancy_update_job, fancy_update_owner, get_contract_address_list, get_contract_by_id, get_or_insert_factory, get_or_insert_public_key, get_public_key_list, get_user, insert_fancy_obj, update_contract_data, update_user_tokens, FancyOrderBy, PublicKeyFilter, ReservedStatus};
+use crate::db::model::{ContractAddressDbObj, DeployStatus, JobDbObj, MinerDbObj, UserDbObj};
+use crate::db::ops::{
+    fancy_finish_job, fancy_get_by_address, fancy_get_job_info, fancy_get_miner_info,
+    fancy_insert_job_info, fancy_insert_miner_info, fancy_list, fancy_update_job,
+    fancy_update_owner, get_contract_address_list, get_contract_by_id, get_or_insert_factory,
+    get_or_insert_public_key, get_public_key_list, get_user, insert_fancy_obj,
+    update_contract_data, update_user_tokens, FancyOrderBy, PublicKeyFilter, ReservedStatus,
+};
 use crate::fancy::{parse_fancy, parse_fancy_private};
 use crate::types::DbAddress;
 use crate::{get_logged_user_or_null, login_check_and_get, normalize_address, ServerData};
@@ -18,7 +24,7 @@ use rand::prelude::SliceRandom;
 use rand::thread_rng;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use sqlx::{Error, Executor, Sqlite};
+use sqlx::{Sqlite, Transaction};
 use std::cmp::PartialEq;
 use std::str::FromStr;
 use web3::signing::keccak256;
@@ -395,7 +401,7 @@ pub async fn handle_fancy_new_many2(
             job_id: Some(new_data.extra.job_id.clone()),
         };
         let resp =
-            _handle_fancy_new_with_trans(web::Json(new_data), &mut total_score, &mut *db_trans)
+            _handle_fancy_new_with_trans(web::Json(new_data), &mut total_score, &mut db_trans)
                 .await;
         match resp {
             FancyNewResult::Ok(_ok) => {}
@@ -737,14 +743,11 @@ enum FancyNewResult {
     ScoreTooLow,
 }
 
-async fn _handle_fancy_new_with_trans<'c, E>(
+async fn _handle_fancy_new_with_trans(
     new_data: web::Json<AddNewData>,
     total_score: &mut f64,
-    db_trans: E,
-) -> FancyNewResult
-where
-    E: Executor<'c, Database = Sqlite>,
-{
+    db_trans: &mut Transaction<'_, Sqlite>,
+) -> FancyNewResult {
     let mut result = if new_data.factory.len() == 42 || new_data.factory.len() == 40 {
         let factory = match web3::types::Address::from_str(&new_data.factory) {
             Ok(factory) => factory,
@@ -754,16 +757,14 @@ where
             }
         };
         let fancy = match parse_fancy(new_data.salt.clone(), factory) {
-            Ok(fancy) => {
-                fancy
-            },
+            Ok(fancy) => fancy,
             Err(e) => {
                 log::error!("{}", e);
                 return FancyNewResult::Error(HttpResponse::InternalServerError().finish());
             }
         };
         match get_or_insert_factory(db_trans, DbAddress::from_h160(factory)).await {
-            Ok(_) => {},
+            Ok(_) => {}
             Err(e) => {
                 log::error!("{}", e);
                 return FancyNewResult::Error(HttpResponse::InternalServerError().finish());
@@ -800,7 +801,7 @@ where
             }
         };
         match get_or_insert_public_key(db_trans, &public_key_base).await {
-            Ok(_) => {},
+            Ok(_) => {}
             Err(e) => {
                 log::error!("{}", e);
                 return FancyNewResult::Error(HttpResponse::InternalServerError().finish());
@@ -826,8 +827,7 @@ where
     }
     let score = result.score;
 
-
-    match insert_fancy_obj(db_trans, result).await {
+    match insert_fancy_obj(&mut **db_trans, result).await {
         Ok(_) => {
             *total_score += score;
             FancyNewResult::Ok(HttpResponse::Ok().json(json!({
