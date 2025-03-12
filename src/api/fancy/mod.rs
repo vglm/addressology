@@ -22,19 +22,21 @@ use sqlx::{Error, Executor, Sqlite};
 use std::cmp::PartialEq;
 use std::str::FromStr;
 use web3::signing::keccak256;
+use crate::db::executor::DbExecutor;
 
 pub async fn handle_random(
     server_data: web::Data<Box<ServerData>>,
     request: HttpRequest,
 ) -> Result<HttpResponse, actix_web::Error> {
     let conn = server_data.db_connection.lock().await;
+    let mut conn = DbExecutor::from(&conn);
 
     let mut category = extract_url_param(&request, "category")?;
     if category == Some("all".to_string()) {
         category = None
     }
     let list = fancy_list(
-        &*conn,
+        &mut conn,
         category,
         FancyOrderBy::Score,
         ReservedStatus::NotReserved,
@@ -85,7 +87,8 @@ pub async fn handle_my_list(
         log::error!("{}", e);
         actix_web::error::ErrorInternalServerError("Error starting transaction")
     })?;
-    let assignments = match get_contract_address_list(&mut *db_trans, &user.uid).await {
+    let mut db_trans = DbExecutor::from_tx(db_trans);
+    let assignments = match get_contract_address_list(&mut db_trans, &user.uid).await {
         Ok(assignments) => assignments,
         Err(e) => {
             log::error!("{}", e);
@@ -93,7 +96,7 @@ pub async fn handle_my_list(
         }
     };
     let fancies = match fancy_list(
-        &mut *db_trans,
+        &mut db_trans,
         None,
         FancyOrderBy::Score,
         ReservedStatus::User(user.uid.clone()),
@@ -160,8 +163,9 @@ pub async fn handle_public_key_list(
     let user = login_check_and_get!(session);
 
     let conn = server_data.db_connection.lock().await;
+    let mut conn = DbExecutor::from(&conn);
 
-    let res = match get_public_key_list(&*conn, Some(user.uid)).await {
+    let res = match get_public_key_list(&mut conn, Some(user.uid)).await {
         Ok(res) => res,
         Err(e) => {
             log::error!("{}", e);
@@ -178,6 +182,8 @@ pub async fn handle_list(
 ) -> Result<HttpResponse, actix_web::Error> {
     let user = get_logged_user_or_null!(session);
     let conn = server_data.db_connection.lock().await;
+    let mut conn = DbExecutor::from(&conn);
+
     let limit = extract_url_int_param(&request, "limit")?;
     let public_key_base = extract_url_param(&request, "public_key_base")?;
     let mut category = extract_url_param(&request, "category")?;
@@ -219,7 +225,7 @@ pub async fn handle_list(
     };
 
     let list = match fancy_list(
-        &*conn,
+        &mut conn,
         category,
         order,
         reserved_status,
@@ -251,8 +257,9 @@ pub async fn handle_fancy_estimate_total_hash(
     };
     let fancies = {
         let conn = server_data.db_connection.lock().await;
+        let mut conn = DbExecutor::from(&conn);
         match fancy_list(
-            &*conn,
+            &mut conn,
             Some("leading_zeroes".to_string()),
             FancyOrderBy::Score,
             ReservedStatus::All,
@@ -379,7 +386,8 @@ pub async fn handle_fancy_new_many2(
             return HttpResponse::InternalServerError().finish();
         }
     };
-    let find_job = match fancy_get_job_info(&mut *db_trans, &new_data.extra.job_id).await {
+    let mut db_trans = DbExecutor::from_tx(db_trans);
+    let find_job = match fancy_get_job_info(&mut db_trans, &new_data.extra.job_id).await {
         Ok(job) => job,
         Err(e) => {
             log::error!("{}", e);
@@ -395,7 +403,7 @@ pub async fn handle_fancy_new_many2(
             job_id: Some(new_data.extra.job_id.clone()),
         };
         let resp =
-            _handle_fancy_new_with_trans(web::Json(new_data), &mut total_score, &mut *db_trans)
+            _handle_fancy_new_with_trans(web::Json(new_data), &mut total_score, &mut db_trans)
                 .await;
         match resp {
             FancyNewResult::Ok(_ok) => {}
@@ -409,7 +417,7 @@ pub async fn handle_fancy_new_many2(
     }
 
     match fancy_update_job(
-        &mut *db_trans,
+        &mut db_trans,
         &find_job.uid,
         find_job.hashes_accepted + total_score,
         new_data.extra.reported_hashes,
@@ -455,10 +463,11 @@ pub async fn handle_finish_job(
             return HttpResponse::InternalServerError().finish();
         }
     };
+    let mut db_trans = DbExecutor::from_tx(db_trans);
 
     let job_id = job_id.into_inner();
 
-    match fancy_finish_job(&mut *db_trans, &job_id).await {
+    match fancy_finish_job(&mut db_trans, &job_id).await {
         Ok(_) => {
             log::info!("Job {} finished", job_id);
         }
@@ -468,7 +477,7 @@ pub async fn handle_finish_job(
         }
     }
 
-    let info = match fancy_get_job_info(&mut *db_trans, &job_id).await {
+    let info = match fancy_get_job_info(&mut db_trans, &job_id).await {
         Ok(info) => {
             log::info!("Job {} finished", job_id);
             info
@@ -478,7 +487,7 @@ pub async fn handle_finish_job(
             return HttpResponse::InternalServerError().finish();
         }
     };
-    let miner_info = match fancy_get_miner_info(&mut *db_trans, &info.miner).await {
+    let miner_info = match fancy_get_miner_info(&mut db_trans, &info.miner).await {
         Ok(Some(miner_info)) => miner_info,
         Ok(None) => {
             log::error!("Miner info not found for job {}", job_id);
@@ -529,6 +538,7 @@ pub async fn handle_new_job(
             return HttpResponse::InternalServerError().finish();
         }
     };
+    let mut db_trans = DbExecutor::from_tx(db_trans);
     if new_data.miner.prov_node_id.is_none()
         && new_data.miner.prov_reward_addr.is_none()
         && new_data.miner.prov_name.is_none()
@@ -576,7 +586,7 @@ pub async fn handle_new_job(
     }
     let xor = hex::encode(xor);
 
-    let miner_info = match fancy_get_miner_info(&mut *db_trans, &xor).await {
+    let miner_info = match fancy_get_miner_info(&mut db_trans, &xor).await {
         Ok(Some(miner_info)) => miner_info,
         Ok(None) => {
             let new_miner_info = MinerDbObj {
@@ -586,7 +596,7 @@ pub async fn handle_new_job(
                 prov_name: new_data.miner.prov_name.clone(),
                 prov_extra_info: new_data.miner.prov_extra_info.clone(),
             };
-            match fancy_insert_miner_info(&mut *db_trans, new_miner_info).await {
+            match fancy_insert_miner_info(&mut db_trans, new_miner_info).await {
                 Ok(inserted) => inserted,
                 Err(e) => {
                     log::error!("{}", e);
@@ -624,7 +634,7 @@ pub async fn handle_new_job(
         miner: miner_info.uid,
         job_extra_info: None,
     };
-    let job_info = match fancy_insert_job_info(&mut *db_trans, job_info).await {
+    let job_info = match fancy_insert_job_info(&mut db_trans, job_info).await {
         Ok(job_info) => job_info,
         Err(e) => {
             log::error!("{}", e);
@@ -651,6 +661,18 @@ pub async fn handle_new_job(
         }
     }
 }
+
+
+
+pub async fn test<'c, 'e>(
+    exec: &'e mut DbExecutor<'c>,
+) {
+    exec.exec().fetch_one("").await;
+
+    unimplemented!()
+}
+
+
 
 async fn _handle_fancy_new(
     server_data: web::Data<Box<ServerData>>,
@@ -697,6 +719,7 @@ async fn _handle_fancy_new(
     }
     let score = result.score;
     let conn = server_data.db_connection.lock().await;
+    let mut executor = DbExecutor::from(&*conn);
     let mut db_trans = match conn.begin().await {
         Ok(db) => db,
         Err(e) => {
@@ -705,30 +728,36 @@ async fn _handle_fancy_new(
         }
     };
 
-    //result.job = None;
 
-    match insert_fancy_obj(&mut *db_trans, result).await {
-        Ok(_) => match db_trans.commit().await {
-            Ok(_) => {
-                *total_score += score;
-                HttpResponse::Ok().json(json!({
-                    "totalSore": score
-                }))
-            }
-            Err(e) => {
-                log::error!("{}", e);
-                HttpResponse::InternalServerError().finish()
-            }
-        },
-        Err(e) => {
-            if e.to_string().contains("UNIQUE constraint failed") {
-                HttpResponse::Ok().body("Already exists")
-            } else {
-                log::error!("{}", e);
-                HttpResponse::InternalServerError().finish()
-            }
-        }
-    }
+   // test(&mut executor);
+
+    //HttpResponse::InternalServerError().finish()
+    //result.job = None;
+     {
+         match insert_fancy_obj(&mut executor, result).await {
+             Ok(_) => match db_trans.commit().await {
+                 Ok(_) => {
+                     *total_score += score;
+                     HttpResponse::Ok().json(json!({
+                         "totalSore": score
+                     }))
+                 }
+                 Err(e) => {
+                     log::error!("{}", e);
+                     HttpResponse::InternalServerError().finish()
+                 }
+             },
+             Err(e) => {
+                 if e.to_string().contains("UNIQUE constraint failed") {
+                     HttpResponse::Ok().body("Already exists")
+                 } else {
+                     log::error!("{}", e);
+                     HttpResponse::InternalServerError().finish()
+                 }
+             }
+         }
+     }
+
 }
 
 enum FancyNewResult {
@@ -737,13 +766,11 @@ enum FancyNewResult {
     ScoreTooLow,
 }
 
-async fn _handle_fancy_new_with_trans<'c, E>(
+async fn _handle_fancy_new_with_trans<'c>(
     new_data: web::Json<AddNewData>,
     total_score: &mut f64,
-    db_trans: E,
+    db_trans: &mut DbExecutor<'c>,
 ) -> FancyNewResult
-where
-    E: Executor<'c, Database = Sqlite>,
 {
     let mut result = if new_data.factory.len() == 42 || new_data.factory.len() == 40 {
         let factory = match web3::types::Address::from_str(&new_data.factory) {
@@ -862,8 +889,9 @@ pub async fn handle_fancy_deploy_start(
     let contract_id = contract_id.into_inner();
 
     let conn = server_data.db_connection.lock().await;
+    let mut conn = DbExecutor::from(&*conn);
 
-    let contract = match get_contract_by_id(&*conn, contract_id, user.uid.clone()).await {
+    let contract = match get_contract_by_id(&mut conn, contract_id, user.uid.clone()).await {
         Ok(Some(contract)) => {
             let mut contract = contract;
             match contract.deploy_status {
@@ -886,7 +914,7 @@ pub async fn handle_fancy_deploy_start(
         }
     };
 
-    match update_contract_data(&*conn, contract).await {
+    match update_contract_data(&mut conn, contract).await {
         Ok(contr) => HttpResponse::Ok().json(contr),
         Err(err) => {
             log::error!("Error updating contract data {}", err);
@@ -912,6 +940,7 @@ pub async fn handle_fancy_buy_api(
             return HttpResponse::InternalServerError().finish();
         }
     };
+    let mut trans = DbExecutor::from_tx()
 
     let user_for_tx = match get_user(&mut *trans, &user.email).await {
         Ok(user) => user,

@@ -1,5 +1,6 @@
 use crate::db::model::{OauthStageDbObj, UserDbObj};
-use sqlx::{Executor, Sqlite, SqlitePool};
+use sqlx::{Executor, Sqlite, SqlitePool, Transaction};
+use crate::db::executor::DbExecutor;
 
 pub async fn insert_oauth_stage(
     conn: &SqlitePool,
@@ -128,25 +129,24 @@ WHERE id = $1
     Ok(user.clone())
 }
 
-pub async fn get_user<'c, E>(conn: E, email: &str) -> Result<UserDbObj, sqlx::Error>
-where
-    E: Executor<'c, Database = Sqlite>,
+pub async fn get_user<'c>(conn: &mut DbExecutor<'c>, email: &str) -> Result<UserDbObj, sqlx::Error>
+
 {
     let res = sqlx::query_as::<_, UserDbObj>(r"SELECT * FROM users WHERE email = $1")
         .bind(email)
-        .fetch_one(conn)
+        .fetch_one(conn.exec())
         .await?;
     Ok(res)
 }
 
-pub async fn update_user_tokens<'c, E>(conn: E, email: &str, tokens: i64) -> Result<(), sqlx::Error>
-where
-    E: Executor<'c, Database = Sqlite>,
+
+pub async fn update_user_tokens<'c>(conn: &mut DbExecutor<'c>, email: &str, tokens: i64) -> Result<(), sqlx::Error>
+
 {
     let _res = sqlx::query(r"UPDATE users SET tokens = $1 WHERE email = $2")
         .bind(tokens)
         .bind(email)
-        .execute(conn)
+        .execute(conn.exec())
         .await?;
     Ok(())
 }
@@ -180,9 +180,14 @@ async fn tx_test() -> sqlx::Result<()> {
     let user_from_insert = insert_user(&conn, &user_to_insert)
         .await
         .expect("insert failed");
+
+
     let user_from_dao = get_user(&conn, &user_from_insert.email)
         .await
         .expect("get failed");
+
+    let mut trans = conn.begin().await?;
+
 
     println!("User inserted: {:?}", user_from_insert);
     //all three should be equal

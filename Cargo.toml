@@ -50,6 +50,7 @@ url = "2"
 uuid = { version = "1.10", features = ["v4"] }
 web3 = { git = "https://github.com/scx1332/rust-web3", branch = "master" }
 zstd = "0.13.2"
+futures-core = "0.3.31"
 
 [features]
 default = ["proxy"]

@@ -10,6 +10,7 @@ use crate::{login_check_and_get, ServerData};
 use actix_session::Session;
 use actix_web::web::Data;
 use actix_web::{web, HttpResponse};
+use crate::db::executor::DbExecutor;
 
 pub async fn get_contract_info_api(
     data: Data<Box<ServerData>>,
@@ -21,8 +22,8 @@ pub async fn get_contract_info_api(
     let contract_id = contract_id.into_inner();
 
     let db = data.db_connection.lock().await;
-
-    match get_contract_by_id(&*db, contract_id, user.uid).await {
+    let mut db = DbExecutor::from(&db);
+    match get_contract_by_id(&mut db, contract_id, user.uid).await {
         Ok(contract) => HttpResponse::Ok().json(contract),
         Err(e) => {
             log::error!("Error getting scan info: {}", e);
@@ -82,9 +83,10 @@ pub async fn update_contract_info_api(
             return HttpResponse::InternalServerError().finish();
         }
     };
+    let mut trans = DbExecutor::from_tx(trans);
 
     let mut new_contract_version =
-        match get_contract_by_id(&mut *trans, contract.contract_id, user.uid).await {
+        match get_contract_by_id(&mut trans, contract.contract_id, user.uid).await {
             Ok(Some(contract)) => contract,
             Ok(None) => {
                 log::error!("Contract not found");
@@ -108,7 +110,7 @@ pub async fn update_contract_info_api(
     new_contract_version.address = contract.address;
     new_contract_version.network = contract.network;
 
-    let contr = match update_contract_data(&mut *trans, new_contract_version).await {
+    let contr = match update_contract_data(&mut trans, new_contract_version).await {
         Ok(contr) => contr,
         Err(e) => {
             log::error!("Error inserting scan info: {}", e);
@@ -145,8 +147,9 @@ pub async fn get_all_contract_assignments(
     let user: UserDbObj = login_check_and_get!(session);
 
     let db = data.db_connection.lock().await;
+    let mut db = DbExecutor::from(&db);
 
-    match get_contract_address_list(&*db, &user.uid).await {
+    match get_contract_address_list(&mut db, &user.uid).await {
         Ok(contracts) => HttpResponse::Ok().json(contracts),
         Err(e) => {
             log::error!("Error getting scan info: {}", e);
@@ -173,7 +176,8 @@ pub async fn delete_contract_api(
             return HttpResponse::InternalServerError().finish();
         }
     };
-    let contract = match get_contract_by_id(&mut *trans, contract_id, user.uid).await {
+    let mut trans = DbExecutor::from_tx(trans);
+    let contract = match get_contract_by_id(&mut trans, contract_id, user.uid).await {
         Ok(Some(contract)) => contract,
         Ok(None) => {
             log::error!("Contract not found");
@@ -189,7 +193,7 @@ pub async fn delete_contract_api(
         return HttpResponse::BadRequest()
             .body("Contract is already sent for deployment and cannot be deleted");
     }
-    match delete_contract_by_id(&mut *trans, contract.contract_id, contract.user_id).await {
+    match delete_contract_by_id(&mut trans, contract.contract_id, contract.user_id).await {
         Ok(_) => match trans.commit().await {
             Ok(_) => HttpResponse::Ok().finish(),
             Err(e) => {

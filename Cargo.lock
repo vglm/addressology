@@ -344,6 +344,7 @@ dependencies = [
  "dotenvy",
  "env_logger",
  "eth-blockies",
+ "futures-core",
  "futures-util",
  "hex",
  "lazy_static",

@@ -1,5 +1,6 @@
 use crate::db::model::{ContractAddressDbObj, ContractDbObj, DeployStatus};
 use sqlx::{Executor, Sqlite, SqlitePool};
+use crate::db::executor::DbExecutor;
 
 pub async fn insert_contract_obj(
     conn: &SqlitePool,
@@ -26,30 +27,28 @@ pub async fn insert_contract_obj(
     Ok(res)
 }
 
-pub async fn get_contract_by_id<'c, E>(
-    conn: E,
+pub async fn get_contract_by_id<'c>(
+    conn: &mut DbExecutor<'c>,
     contract_id: String,
     user_id: String,
 ) -> Result<Option<ContractDbObj>, sqlx::Error>
-where
-    E: Executor<'c, Database = Sqlite>,
+
 {
     let res = sqlx::query_as::<_, ContractDbObj>(
         r"SELECT * FROM contract WHERE contract_id = $1 AND user_id = $2;",
     )
     .bind(contract_id)
     .bind(user_id)
-    .fetch_optional(conn)
+    .fetch_optional(conn.exec())
     .await?;
     Ok(res)
 }
 
-pub async fn get_contract_address_list<'c, E>(
-    conn: E,
+pub async fn get_contract_address_list<'c>(
+    conn: &mut DbExecutor<'c>,
     user_id: &str,
 ) -> Result<Vec<ContractAddressDbObj>, sqlx::Error>
-where
-    E: Executor<'c, Database = Sqlite>,
+
 {
     let res = sqlx::query_as::<_, ContractAddressDbObj>(
         r"SELECT
@@ -68,7 +67,7 @@ where
                 ORDER BY created DESC;",
     )
     .bind(user_id)
-    .fetch_all(conn)
+    .fetch_all(conn.exec())
     .await?;
     Ok(res)
 }
@@ -104,28 +103,26 @@ pub async fn get_all_contracts_by_deploy_status_and_network(
     Ok(res)
 }
 
-pub async fn delete_contract_by_id<'c, E>(
-    conn: E,
+pub async fn delete_contract_by_id<'c>(
+    conn: &mut DbExecutor<'c>,
     contract_id: String,
     user_id: String,
 ) -> Result<(), sqlx::Error>
-where
-    E: Executor<'c, Database = Sqlite>,
+
 {
     sqlx::query(r"DELETE FROM contract WHERE contract_id = $1 AND user_id = $2")
         .bind(contract_id)
         .bind(user_id)
-        .execute(conn)
+        .execute(conn.exec())
         .await?;
     Ok(())
 }
 
-pub async fn update_contract_data<'c, E>(
-    conn: E,
+pub async fn update_contract_data<'c>(
+    conn: &mut DbExecutor<'c>,
     contract: ContractDbObj,
 ) -> Result<ContractDbObj, sqlx::Error>
-where
-    E: Executor<'c, Database = Sqlite>,
+
 {
     let obj = sqlx::query_as::<_, ContractDbObj>(
         r"UPDATE contract
@@ -150,7 +147,7 @@ where
     .bind(contract.deploy_sent)
     .bind(contract.deployed)
     .bind(contract.address)
-    .fetch_one(conn)
+    .fetch_one(conn.exec())
     .await?;
     Ok(obj)
 }
