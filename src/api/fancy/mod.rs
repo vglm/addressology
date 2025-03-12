@@ -5,14 +5,8 @@ use crate::api::contract::api::login_check_fn;
 use crate::api::utils::{
     extract_url_bool_param, extract_url_date_param, extract_url_int_param, extract_url_param,
 };
-use crate::db::model::{ContractAddressDbObj, DeployStatus, JobDbObj, MinerDbObj, UserDbObj};
-use crate::db::ops::{
-    fancy_finish_job, fancy_get_by_address, fancy_get_job_info, fancy_get_miner_info,
-    fancy_insert_job_info, fancy_insert_miner_info, fancy_list, fancy_update_job,
-    fancy_update_owner, get_contract_address_list, get_contract_by_id, get_public_key_list,
-    get_user, insert_fancy_obj, update_contract_data, update_user_tokens, FancyOrderBy,
-    PublicKeyFilter, ReservedStatus,
-};
+use crate::db::model::{ContractAddressDbObj, ContractFactoryDbObject, DeployStatus, JobDbObj, MinerDbObj, UserDbObj};
+use crate::db::ops::{fancy_finish_job, fancy_get_by_address, fancy_get_job_info, fancy_get_miner_info, fancy_insert_job_info, fancy_insert_miner_info, fancy_list, fancy_update_job, fancy_update_owner, get_contract_address_list, get_contract_by_id, get_or_insert_factory, get_or_insert_public_key, get_public_key_list, get_user, insert_fancy_obj, update_contract_data, update_user_tokens, FancyOrderBy, PublicKeyFilter, ReservedStatus};
 use crate::fancy::{parse_fancy, parse_fancy_private};
 use crate::types::DbAddress;
 use crate::{get_logged_user_or_null, login_check_and_get, normalize_address, ServerData};
@@ -24,7 +18,7 @@ use rand::prelude::SliceRandom;
 use rand::thread_rng;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use sqlx::{Executor, Sqlite};
+use sqlx::{Error, Executor, Sqlite};
 use std::cmp::PartialEq;
 use std::str::FromStr;
 use web3::signing::keccak256;
@@ -759,21 +753,60 @@ where
                 return FancyNewResult::Error(HttpResponse::BadRequest().finish());
             }
         };
-        match parse_fancy(new_data.salt.clone(), factory) {
-            Ok(fancy) => fancy,
+        let fancy = match parse_fancy(new_data.salt.clone(), factory) {
+            Ok(fancy) => {
+                fancy
+            },
+            Err(e) => {
+                log::error!("{}", e);
+                return FancyNewResult::Error(HttpResponse::InternalServerError().finish());
+            }
+        };
+        match get_or_insert_factory(db_trans, DbAddress::from_h160(factory)).await {
+            Ok(_) => {},
             Err(e) => {
                 log::error!("{}", e);
                 return FancyNewResult::Error(HttpResponse::InternalServerError().finish());
             }
         }
+        fancy
     } else {
-        match parse_fancy_private(new_data.factory.clone(), new_data.salt.clone()) {
+        //normalize public key
+        let public_key_base = new_data.factory.clone();
+        let public_key_bytes = match hex::decode(public_key_base.clone()) {
+            Ok(bytes) => bytes,
+            Err(e) => {
+                log::error!("{}", e);
+                return FancyNewResult::Error(HttpResponse::BadRequest().finish());
+            }
+        };
+        if public_key_bytes.len() != 64 {
+            log::error!("Invalid public key length: {}", public_key_base);
+            return FancyNewResult::Error(HttpResponse::BadRequest().finish());
+        }
+        let public_key_base = "0x".to_string() + &hex::encode(public_key_bytes);
+        let fancy = match parse_fancy_private(public_key_base, new_data.salt.clone()) {
             Ok(fancy) => fancy,
             Err(e) => {
                 log::error!("{}", e);
                 return FancyNewResult::Error(HttpResponse::InternalServerError().finish());
             }
+        };
+        let public_key_base = match fancy.public_key_base.clone() {
+            Some(key) => key,
+            None => {
+                log::error!("Public key not found after parse");
+                return FancyNewResult::Error(HttpResponse::InternalServerError().finish());
+            }
+        };
+        match get_or_insert_public_key(db_trans, &public_key_base).await {
+            Ok(_) => {},
+            Err(e) => {
+                log::error!("{}", e);
+                return FancyNewResult::Error(HttpResponse::InternalServerError().finish());
+            }
         }
+        fancy
     };
 
     result.job = new_data.job_id.clone();
@@ -792,6 +825,7 @@ where
         return FancyNewResult::Error(HttpResponse::BadRequest().body("Address mismatch"));
     }
     let score = result.score;
+
 
     match insert_fancy_obj(db_trans, result).await {
         Ok(_) => {

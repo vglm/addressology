@@ -1,5 +1,6 @@
 use crate::db::model::{
-    FancyDbObj, FancyProviderDbObj, JobDbObj, MinerDbObj, PublicKeyBaseDbObject,
+    ContractFactoryDbObject, FancyDbObj, FancyProviderDbObj, JobDbObj, MinerDbObj,
+    PublicKeyBaseDbObject,
 };
 use crate::types::DbAddress;
 use chrono::{DateTime, Utc};
@@ -93,7 +94,7 @@ pub async fn get_or_insert_public_key<'c, E>(
     public_key_base: &str,
 ) -> Result<PublicKeyBaseDbObject, sqlx::Error>
 where
-    E: Executor<'c, Database = Sqlite> + std::marker::Copy,
+    E: Executor<'c, Database = Sqlite>,
 {
     //select first
     let res = sqlx::query_as::<_, PublicKeyBaseDbObject>(
@@ -111,6 +112,36 @@ where
         )
         .bind(uuid::Uuid::new_v4().to_string())
         .bind(public_key_base)
+        .bind(Utc::now().naive_utc())
+        .fetch_one(conn)
+        .await?;
+        Ok(res)
+    }
+}
+
+pub async fn get_or_insert_factory<'c, E>(
+    conn: E,
+    factory_address: DbAddress,
+) -> Result<ContractFactoryDbObject, sqlx::Error>
+where
+    E: Executor<'c, Database = Sqlite>,
+{
+    //select first
+    let res = sqlx::query_as::<_, ContractFactoryDbObject>(
+        r"SELECT * FROM contract_factory WHERE address = $1;",
+    )
+    .bind(factory_address)
+    .fetch_optional(conn)
+    .await?;
+
+    if let Some(pk) = res {
+        Ok(pk)
+    } else {
+        let res = sqlx::query_as::<_, ContractFactoryDbObject>(
+            r"INSERT INTO contract_factory (id, address, added) VALUES ($1, $2, $3) RETURNING *;",
+        )
+        .bind(uuid::Uuid::new_v4().to_string())
+        .bind(factory_address)
         .bind(Utc::now().naive_utc())
         .fetch_one(conn)
         .await?;
