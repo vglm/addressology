@@ -21,6 +21,7 @@ use crate::db::ops::{
     fancy_list_all, fancy_update_score, get_all_contracts_by_deploy_status_and_network,
     insert_fancy_obj,
 };
+use crate::db::utils::get_current_utc_time;
 use crate::deploy::handle_fancy_deploy;
 use crate::fancy::parse_fancy;
 use crate::fancy::score_fancy;
@@ -40,7 +41,6 @@ use lazy_static::lazy_static;
 use serde::Deserialize;
 use sqlx::PgPool;
 use std::env;
-use std::ops::Sub;
 use std::str::FromStr;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -332,7 +332,7 @@ async fn main() -> std::io::Result<()> {
             let fancies = if last_day {
                 fancy_list_all(
                     &conn,
-                    Some(chrono::Utc::now().sub(chrono::Duration::days(1))),
+                    Some(get_current_utc_time() - chrono::Duration::days(1)),
                 )
                 .await
                 .unwrap()

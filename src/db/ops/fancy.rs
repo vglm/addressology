@@ -2,8 +2,9 @@ use crate::db::model::{
     ContractFactoryDbObject, FancyDbObj, FancyProviderDbObj, JobDbObj, JobMinerDbReadObj,
     MinerDbObj, PublicKeyBaseDbObject,
 };
+use crate::db::utils::get_min_time;
 use crate::types::DbAddress;
-use chrono::{DateTime, Utc};
+use chrono::{NaiveDateTime, Utc};
 use sqlx::types::Uuid;
 use sqlx::{Executor, PgPool, Postgres, Transaction};
 
@@ -37,14 +38,10 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *;
 
 pub async fn fancy_list_all(
     conn: &PgPool,
-    since: Option<DateTime<Utc>>,
+    since: Option<NaiveDateTime>,
 ) -> Result<Vec<FancyDbObj>, sqlx::Error> {
     let res = sqlx::query_as::<_, FancyDbObj>(r"SELECT * FROM fancy WHERE created > $1;")
-        .bind(
-            since
-                .map(|s| s.format("%Y-%m-%d %H:%M:%S").to_string())
-                .unwrap_or("2000-01-01 00:00:00".to_string()),
-        )
+        .bind(since.unwrap_or(get_min_time()))
         .fetch_all(conn)
         .await?;
     Ok(res)
@@ -147,7 +144,7 @@ pub async fn fancy_list<'c, E>(
     category: Option<String>,
     order_by: FancyOrderBy,
     reserved: ReservedStatus,
-    since: Option<DateTime<Utc>>,
+    since: Option<NaiveDateTime>,
     public_key_base: PublicKeyFilter,
     limit: i64,
 ) -> Result<Vec<FancyProviderDbObj>, sqlx::Error>
@@ -229,7 +226,7 @@ pub enum FancyJobStatus {
 pub async fn fancy_job_list<'c, E>(
     conn: E,
     order_by: FancyJobOrderBy,
-    since: Option<DateTime<Utc>>,
+    since: Option<NaiveDateTime>,
     status: FancyJobStatus,
     requestor_id: Option<DbAddress>,
     limit: i64,
