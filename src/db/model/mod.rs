@@ -9,6 +9,7 @@ use chrono::NaiveDateTime;
 use crate::fancy::FancyScoreCategory;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use sqlx::types::Uuid;
 
 #[derive(Serialize, Deserialize, sqlx::FromRow, PartialEq, Eq, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -30,6 +31,29 @@ pub struct UserDbObj {
 
     pub tokens: i64,
 }
+
+#[derive(Serialize, Deserialize, sqlx::FromRow, PartialEq, Eq, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct PostgresUserDbObj {
+    pub uid: Uuid,
+    pub email: String,
+    #[serde(skip)]
+    pub pass_hash: String,
+    pub created_date: NaiveDateTime,
+    pub last_pass_change: NaiveDateTime,
+
+    #[serde(skip)]
+    pub set_pass_token: Option<String>,
+    #[serde(skip)]
+    pub set_pass_token_date: Option<NaiveDateTime>,
+
+    pub allow_pass_login: bool,
+    pub allow_google_login: bool,
+
+    pub tokens: i64,
+}
+
+
 
 #[derive(Serialize, Deserialize, sqlx::FromRow, PartialEq, Eq, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
