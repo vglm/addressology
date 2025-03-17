@@ -44,7 +44,7 @@ pub async fn handle_fancy_buy_api(
         }
     };
 
-    if address_db.owner.is_some() {
+    if address_db.owner_id.is_some() {
         log::error!("Address already owned: {}", address);
         return HttpResponse::BadRequest().body("Address already owned");
     }

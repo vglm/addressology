@@ -20,7 +20,7 @@ CREATE TABLE oauth_stage (
 CREATE INDEX oauth_stage_created_at_idx ON oauth_stage (created_at);
 
 CREATE TABLE miner_info (
-    uid UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    uid VARCHAR(64) NOT NULL PRIMARY KEY,
     prov_node_id TEXT NULL,
     prov_reward_addr TEXT NULL,
     prov_name TEXT NULL,
@@ -39,7 +39,7 @@ CREATE TABLE job_info (
     entries_accepted BIGINT NOT NULL,
     entries_rejected BIGINT NOT NULL,
     cost_reported DOUBLE PRECISION NOT NULL,
-    miner UUID NULL,
+    miner VARCHAR(64) NULL,
     job_extra_info TEXT NULL,
     FOREIGN KEY (miner) REFERENCES miner_info (uid) ON DELETE CASCADE
 );
@@ -65,7 +65,7 @@ CREATE TABLE public_key_base (
 );
 
 CREATE TABLE fancy (
-    address                 TEXT NOT NULL PRIMARY KEY,
+    address                 VARCHAR(42) NOT NULL PRIMARY KEY,
     salt                    TEXT NOT NULL,
     factory                 TEXT NULL,
     public_key_base         TEXT NULL,

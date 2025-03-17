@@ -36,11 +36,10 @@ pub fn parse_fancy_private(
         factory: None,
         created: chrono::Utc::now().naive_utc(),
         score: score.total_score,
-
-        owner: None,
+        owner_id: None,
         price: (score.price_multiplier * get_base_difficulty_price() as f64) as i64,
         category: score.category,
-        job: None,
+        job_id: None,
         public_key_base: Some(public_key_base),
     })
 }
@@ -71,11 +70,10 @@ pub fn parse_fancy(salt: String, factory: Address) -> Result<FancyDbObj, Address
         factory: Some(DbAddress::wrap(factory)),
         created: chrono::Utc::now().naive_utc(),
         score: score.total_score,
-
-        owner: None,
+        owner_id: None,
         price: (score.price_multiplier * get_base_difficulty_price() as f64) as i64,
         category: score.category,
-        job: None,
+        job_id: None,
         public_key_base: None,
     })
 }

@@ -10,6 +10,7 @@ use actix_session::Session;
 use actix_web::{web, HttpRequest, HttpResponse};
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
+use sqlx::types::Uuid;
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -19,10 +20,10 @@ pub struct FancyProviderContractApi {
     pub factory: DbAddress,
     pub created: NaiveDateTime,
     pub score: f64,
-    pub owner: Option<String>,
+    pub owner_id: Option<Uuid>,
     pub price: i64,
     pub category: String,
-    pub job: Option<String>,
+    pub job_id: Option<Uuid>,
     pub prov_name: String,
     pub prov_node_id: String,
     pub prov_reward_addr: String,
@@ -88,10 +89,10 @@ pub async fn handle_my_list(
             })?,
             created: fancy.created,
             score: fancy.score,
-            owner: fancy.owner,
+            owner_id: fancy.owner_id,
             price: fancy.price,
             category: fancy.category,
-            job: fancy.job,
+            job_id: fancy.job_id,
             prov_name: fancy.prov_name,
             prov_node_id: fancy.prov_node_id,
             prov_reward_addr: fancy.prov_reward_addr,

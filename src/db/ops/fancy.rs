@@ -16,7 +16,7 @@ where
 {
     let res = sqlx::query_as::<_, FancyDbObj>(
         r"INSERT INTO fancy
-(address, salt, factory, created, score, job, owner, price, category, public_key_base)
+(address, salt, factory, created, score, job_id, owner_id, price, category, public_key_base)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *;
 ",
     )
@@ -25,8 +25,8 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *;
     .bind(fancy_data.factory)
     .bind(fancy_data.created)
     .bind(fancy_data.score)
-    .bind(fancy_data.job)
-    .bind(&fancy_data.owner)
+    .bind(fancy_data.job_id)
+    .bind(fancy_data.owner_id)
     .bind(fancy_data.price)
     .bind(&fancy_data.category)
     .bind(&fancy_data.public_key_base)
@@ -392,7 +392,7 @@ VALUES ($1, $2, $3, $4, $5) RETURNING *;",
     Ok(res)
 }
 
-pub async fn fancy_get_job_info<'c, E>(conn: E, uid: &str) -> Result<JobDbObj, sqlx::Error>
+pub async fn fancy_get_job_info<'c, E>(conn: E, uid: Uuid) -> Result<JobDbObj, sqlx::Error>
 where
     E: Executor<'c, Database = Postgres>,
 {
@@ -414,7 +414,7 @@ where
         r"INSERT INTO job_info (uid, cruncher_ver, started_at, updated_at, finished_at, requestor_id, hashes_accepted, hashes_reported, entries_accepted, entries_rejected, cost_reported, miner, job_extra_info)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *;",
     )
-        .bind(&job_info.uid)
+        .bind(job_info.uid)
         .bind(&job_info.cruncher_ver)
         .bind(job_info.started_at)
         .bind(job_info.updated_at)
@@ -434,7 +434,7 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *;",
 
 pub async fn fancy_update_job<'c, E>(
     conn: E,
-    job_uid: &str,
+    job_uid: Uuid,
     hashes_accepted: f64,
     hashes_reported: f64,
     entries_accepted: i64,
@@ -466,7 +466,7 @@ where
     Ok(())
 }
 
-pub async fn fancy_finish_job<'c, E>(conn: E, job_uid: &str) -> Result<(), sqlx::Error>
+pub async fn fancy_finish_job<'c, E>(conn: E, job_uid: Uuid) -> Result<(), sqlx::Error>
 where
     E: Executor<'c, Database = Postgres>,
 {

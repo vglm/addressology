@@ -10,9 +10,8 @@ use crate::{get_logged_user_or_null, ServerData};
 use actix_session::Session;
 use actix_web::{web, HttpRequest, HttpResponse};
 use chrono::NaiveDateTime;
-use pbkdf2::password_hash::rand_core::RngCore;
-use rand::thread_rng;
 use serde::{Deserialize, Serialize};
+use sqlx::types::Uuid;
 use std::cmp::PartialEq;
 use web3::signing::keccak256;
 
@@ -27,7 +26,7 @@ pub struct AddNewJobData {
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct JobWithMinerApi {
-    pub uid: String,
+    pub uid: Uuid,
     pub cruncher_ver: String,
     pub started_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
@@ -106,9 +105,15 @@ pub async fn handle_finish_job(
         }
     };
 
-    let job_id = job_id.into_inner();
+    let job_id = match Uuid::parse_str(&job_id) {
+        Ok(uuid) => uuid,
+        Err(e) => {
+            log::error!("{}", e);
+            return HttpResponse::BadRequest().finish();
+        }
+    };
 
-    match fancy_finish_job(&mut *db_trans, &job_id).await {
+    match fancy_finish_job(&mut *db_trans, job_id).await {
         Ok(_) => {
             log::info!("Job {} finished", job_id);
         }
@@ -118,7 +123,7 @@ pub async fn handle_finish_job(
         }
     }
 
-    let info = match fancy_get_job_info(&mut *db_trans, &job_id).await {
+    let info = match fancy_get_job_info(&mut *db_trans, job_id).await {
         Ok(info) => {
             log::info!("Job {} finished", job_id);
             info
@@ -254,7 +259,7 @@ pub async fn handle_new_job(
     };
 
     //generate random uuid
-    let new_uid = format!("jid{:0>20}", thread_rng().next_u64());
+    let new_uid = Uuid::new_v4();
 
     let requestor_id = match DbAddress::from_str(&new_data.requestor_id) {
         Ok(addr) => addr,

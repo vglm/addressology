@@ -41,7 +41,7 @@ pub async fn handle_score_custom(
         let score = score_fancy(address.addr());
 
         let api_miner_info = if let Some(fancy) = &fancy {
-            if let Some(job_id) = &fancy.job {
+            if let Some(job_id) = fancy.job_id {
                 let job = match fancy_get_job_info(&*db, job_id).await {
                     Ok(job) => job,
                     Err(e) => {

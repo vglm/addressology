@@ -62,19 +62,19 @@ pub struct FancyScore {
 #[derive(Serialize, Deserialize, sqlx::FromRow, PartialEq, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct PublicKeyBaseDbObject {
-    pub id: String,
+    pub id: Uuid,
     pub hex: String,
     pub added: NaiveDateTime,
-    pub user_id: Option<String>,
+    pub user_id: Option<Uuid>,
 }
 
 #[derive(Serialize, Deserialize, sqlx::FromRow, PartialEq, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ContractFactoryDbObject {
-    pub id: String,
+    pub id: Uuid,
     pub address: DbAddress,
     pub added: NaiveDateTime,
-    pub user_id: Option<String>,
+    pub user_id: Option<Uuid>,
 }
 
 #[derive(Serialize, Deserialize, sqlx::FromRow, PartialEq, Debug, Clone)]
@@ -86,10 +86,10 @@ pub struct FancyDbObj {
     pub public_key_base: Option<String>,
     pub created: NaiveDateTime,
     pub score: f64,
-    pub owner: Option<String>,
+    pub job_id: Option<Uuid>,
+    pub owner_id: Option<Uuid>,
     pub price: i64,
     pub category: String,
-    pub job: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, sqlx::FromRow, PartialEq, Debug, Clone)]
@@ -101,10 +101,10 @@ pub struct FancyProviderDbObj {
     pub public_key_base: Option<String>,
     pub created: NaiveDateTime,
     pub score: f64,
-    pub owner: Option<String>,
+    pub owner_id: Option<Uuid>,
     pub price: i64,
     pub category: String,
-    pub job: Option<String>,
+    pub job_id: Option<Uuid>,
     pub prov_name: String,
     pub prov_node_id: String,
     pub prov_reward_addr: String,
@@ -131,7 +131,7 @@ pub struct MinerDbObj {
 #[derive(Serialize, Deserialize, sqlx::FromRow, PartialEq, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct JobDbObj {
-    pub uid: String,
+    pub uid: Uuid,
     pub cruncher_ver: String,
     pub started_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
