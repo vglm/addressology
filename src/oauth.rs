@@ -17,7 +17,7 @@ use oauth2::{
     TokenResponse, TokenUrl,
 };
 use serde::Deserialize;
-use sqlx::SqlitePool;
+use sqlx::PgPool;
 
 fn get_client(hostname: String) -> Result<BasicClient, AddressologyError> {
     let google_client_id = ClientId::new(var("GOOGLE_CLIENT_ID").unwrap());
@@ -86,7 +86,7 @@ pub async fn verify_access_token(
 }
 
 pub async fn create_oauth_query(
-    db_conn: SqlitePool,
+    db_conn: PgPool,
     hostname: String,
 ) -> Result<String, AddressologyError> {
     let (pkce_challenge, pkce_code_verifier) = PkceCodeChallenge::new_random_sha256();

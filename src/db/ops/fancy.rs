@@ -4,14 +4,14 @@ use crate::db::model::{
 };
 use crate::types::DbAddress;
 use chrono::{DateTime, Utc};
-use sqlx::{Executor, Sqlite, SqlitePool, Transaction};
+use sqlx::{Executor, Postgres, PgPool, Transaction};
 
 pub async fn insert_fancy_obj<'c, E>(
     conn: E,
     fancy_data: FancyDbObj,
 ) -> Result<FancyDbObj, sqlx::Error>
 where
-    E: Executor<'c, Database = Sqlite>,
+    E: Executor<'c, Database = Postgres>,
 {
     let res = sqlx::query_as::<_, FancyDbObj>(
         r"INSERT INTO fancy
@@ -35,7 +35,7 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *;
 }
 
 pub async fn fancy_list_all(
-    conn: &SqlitePool,
+    conn: &PgPool,
     since: Option<DateTime<Utc>>,
 ) -> Result<Vec<FancyDbObj>, sqlx::Error> {
     let res = sqlx::query_as::<_, FancyDbObj>(r"SELECT * FROM fancy WHERE created > $1;")
@@ -72,7 +72,7 @@ pub async fn get_public_key_list<'c, E>(
     user_id: Option<String>,
 ) -> Result<Vec<PublicKeyBaseDbObject>, sqlx::Error>
 where
-    E: Executor<'c, Database = Sqlite>,
+    E: Executor<'c, Database = Postgres>,
 {
     let where_clause = match user_id {
         Some(uid) => format!("WHERE user_id = '{}' OR user_id is NULL", uid),
@@ -88,7 +88,7 @@ where
 }
 
 pub async fn get_or_insert_public_key(
-    conn: &mut Transaction<'_, Sqlite>,
+    conn: &mut Transaction<'_, Postgres>,
     public_key_base: &str,
 ) -> Result<PublicKeyBaseDbObject, sqlx::Error> {
     //select first
@@ -115,7 +115,7 @@ pub async fn get_or_insert_public_key(
 }
 
 pub async fn get_or_insert_factory(
-    conn: &mut Transaction<'_, Sqlite>,
+    conn: &mut Transaction<'_, Postgres>,
     factory_address: DbAddress,
 ) -> Result<ContractFactoryDbObject, sqlx::Error> {
     //select first
@@ -151,7 +151,7 @@ pub async fn fancy_list<'c, E>(
     limit: i64,
 ) -> Result<Vec<FancyProviderDbObj>, sqlx::Error>
 where
-    E: Executor<'c, Database = Sqlite>,
+    E: Executor<'c, Database = Postgres>,
 {
     let order_by = match order_by {
         FancyOrderBy::Score => "score",
@@ -234,7 +234,7 @@ pub async fn fancy_job_list<'c, E>(
     limit: i64,
 ) -> Result<Vec<JobMinerDbReadObj>, sqlx::Error>
 where
-    E: Executor<'c, Database = Sqlite>,
+    E: Executor<'c, Database = Postgres>,
 {
     let order_by = match order_by {
         FancyJobOrderBy::Date => "updated_at",
@@ -310,7 +310,7 @@ pub async fn fancy_get_by_address<'c, E>(
     address: DbAddress,
 ) -> Result<Option<FancyDbObj>, sqlx::Error>
 where
-    E: Executor<'c, Database = Sqlite>,
+    E: Executor<'c, Database = Postgres>,
 {
     let res = sqlx::query_as::<_, FancyDbObj>(r"SELECT * FROM fancy WHERE address = $1;")
         .bind(address)
@@ -325,7 +325,7 @@ pub async fn fancy_update_owner<'c, E>(
     owner: String,
 ) -> Result<(), sqlx::Error>
 where
-    E: Executor<'c, Database = Sqlite>,
+    E: Executor<'c, Database = Postgres>,
 {
     let _res = sqlx::query(r"UPDATE fancy SET owner = $1 WHERE address = $2;")
         .bind(owner)
@@ -343,7 +343,7 @@ pub async fn fancy_update_score<'c, E>(
     category: &str,
 ) -> Result<(), sqlx::Error>
 where
-    E: Executor<'c, Database = Sqlite>,
+    E: Executor<'c, Database = Postgres>,
 {
     let _res =
         sqlx::query(r"UPDATE fancy SET score = $1, price = $2, category = $3 WHERE address = $4;")
@@ -361,7 +361,7 @@ pub async fn fancy_get_miner_info<'c, E>(
     miner_info_uid: &str,
 ) -> Result<Option<MinerDbObj>, sqlx::Error>
 where
-    E: Executor<'c, Database = Sqlite>,
+    E: Executor<'c, Database = Postgres>,
 {
     let res = sqlx::query_as::<_, MinerDbObj>(r"SELECT * FROM miner_info WHERE uid = $1;")
         .bind(miner_info_uid)
@@ -375,7 +375,7 @@ pub async fn fancy_insert_miner_info<'c, E>(
     miner_info: MinerDbObj,
 ) -> Result<MinerDbObj, sqlx::Error>
 where
-    E: Executor<'c, Database = Sqlite>,
+    E: Executor<'c, Database = Postgres>,
 {
     let res = sqlx::query_as::<_, MinerDbObj>(
         r"INSERT INTO miner_info (uid, prov_name, prov_node_id, prov_reward_addr, prov_extra_info)
@@ -393,7 +393,7 @@ VALUES ($1, $2, $3, $4, $5) RETURNING *;",
 
 pub async fn fancy_get_job_info<'c, E>(conn: E, uid: &str) -> Result<JobDbObj, sqlx::Error>
 where
-    E: Executor<'c, Database = Sqlite>,
+    E: Executor<'c, Database = Postgres>,
 {
     let res = sqlx::query_as::<_, JobDbObj>(r"SELECT * FROM job_info WHERE uid = $1;")
         .bind(uid)
@@ -407,7 +407,7 @@ pub async fn fancy_insert_job_info<'c, E>(
     job_info: JobDbObj,
 ) -> Result<JobDbObj, sqlx::Error>
 where
-    E: Executor<'c, Database = Sqlite>,
+    E: Executor<'c, Database = Postgres>,
 {
     let res = sqlx::query_as::<_, JobDbObj>(
         r"INSERT INTO job_info (uid, cruncher_ver, started_at, updated_at, finished_at, requestor_id, hashes_accepted, hashes_reported, entries_accepted, entries_rejected, cost_reported, miner, job_extra_info)
@@ -441,7 +441,7 @@ pub async fn fancy_update_job<'c, E>(
     cost_reported: f64,
 ) -> Result<(), sqlx::Error>
 where
-    E: Executor<'c, Database = Sqlite>,
+    E: Executor<'c, Database = Postgres>,
 {
     let _res = sqlx::query(
         r"UPDATE job_info SET
@@ -467,7 +467,7 @@ where
 
 pub async fn fancy_finish_job<'c, E>(conn: E, job_uid: &str) -> Result<(), sqlx::Error>
 where
-    E: Executor<'c, Database = Sqlite>,
+    E: Executor<'c, Database = Postgres>,
 {
     let _res = sqlx::query(r"UPDATE job_info SET finished_at = $1 WHERE uid = $2;")
         .bind(Utc::now().naive_utc())

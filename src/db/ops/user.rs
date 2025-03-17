@@ -1,11 +1,10 @@
 use chrono::NaiveDateTime;
 use crate::db::model::{OauthStageDbObj, PostgresUserDbObj, UserDbObj};
-use sqlx::{Executor, Postgres, Sqlite, SqlitePool};
-use sqlx::{PgPool};
+use sqlx::{Executor, Postgres, PgPool};
 use crate::db::utils::get_current_utc_time;
 
 pub async fn insert_oauth_stage(
-    conn: &SqlitePool,
+    conn: &PgPool,
     oauth_data: OauthStageDbObj,
 ) -> Result<OauthStageDbObj, sqlx::Error> {
     let res = sqlx::query_as::<_, OauthStageDbObj>(
@@ -23,7 +22,7 @@ VALUES ($1, $2, $3) RETURNING *;
 }
 
 pub async fn get_and_remove_oauth_stage(
-    conn: &SqlitePool,
+    conn: &PgPool,
     csrf_state: &str,
 ) -> Result<Option<OauthStageDbObj>, sqlx::Error> {
     let res = sqlx::query_as::<_, OauthStageDbObj>(
@@ -35,7 +34,7 @@ pub async fn get_and_remove_oauth_stage(
     Ok(res)
 }
 
-pub async fn delete_old_oauth_stages(conn: &SqlitePool) -> Result<(), sqlx::Error> {
+pub async fn delete_old_oauth_stages(conn: &PgPool) -> Result<(), sqlx::Error> {
     let _res = sqlx::query(r"DELETE FROM oauth_stage WHERE created_at < $1")
         .bind(chrono::Utc::now() - chrono::Duration::minutes(10))
         .execute(conn)
@@ -67,7 +66,7 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *;
 }
 
 
-pub async fn insert_user(conn: &SqlitePool, user: &UserDbObj) -> Result<UserDbObj, sqlx::Error> {
+pub async fn insert_user(conn: &PgPool, user: &UserDbObj) -> Result<UserDbObj, sqlx::Error> {
     let res = sqlx::query_as::<_, UserDbObj>(
         r"INSERT INTO users
 (uid, email, pass_hash, created_date, last_pass_change, allow_pass_login, allow_google_login, tokens)
@@ -88,7 +87,7 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *;
 }
 
 pub async fn save_reset_token(
-    conn: &SqlitePool,
+    conn: &PgPool,
     email: &str,
     reset_token: &str,
 ) -> Result<(), sqlx::Error> {
@@ -104,7 +103,7 @@ pub async fn save_reset_token(
 }
 
 pub async fn update_user_password(
-    conn: &SqlitePool,
+    conn: &PgPool,
     email: &str,
     new_pass_hash: &str,
 ) -> Result<(), sqlx::Error> {
@@ -124,7 +123,7 @@ WHERE email = $2
 }
 
 #[allow(dead_code)]
-pub async fn update_user(conn: &SqlitePool, user: &UserDbObj) -> Result<UserDbObj, sqlx::Error> {
+pub async fn update_user(conn: &PgPool, user: &UserDbObj) -> Result<UserDbObj, sqlx::Error> {
     let _res = sqlx::query(
         r"UPDATE users SET
 uid = $1,
@@ -157,7 +156,7 @@ WHERE id = $1
 
 pub async fn get_user<'c, E>(conn: E, email: &str) -> Result<UserDbObj, sqlx::Error>
 where
-    E: Executor<'c, Database = Sqlite>,
+    E: Executor<'c, Database = Postgres>,
 {
     let res = sqlx::query_as::<_, UserDbObj>(r"SELECT * FROM users WHERE email = $1")
         .bind(email)
@@ -180,7 +179,7 @@ where
 
 pub async fn update_user_tokens<'c, E>(conn: E, email: &str, tokens: i64) -> Result<(), sqlx::Error>
 where
-    E: Executor<'c, Database = Sqlite>,
+    E: Executor<'c, Database = Postgres>,
 {
     let _res = sqlx::query(r"UPDATE users SET tokens = $1 WHERE email = $2")
         .bind(tokens)
@@ -194,8 +193,8 @@ where
 async fn tx_test() -> sqlx::Result<()> {
     println!("Start tx_test...");
 
-    use crate::create_sqlite_connection;
-    let conn = create_sqlite_connection(None, None, false, true)
+    use crate::create_pg_connection;
+    let conn = create_pg_connection()
         .await
         .unwrap();
 

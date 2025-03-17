@@ -8,7 +8,7 @@ use crate::ServerData;
 use actix_web::{web, HttpResponse};
 use serde::Deserialize;
 use serde_json::json;
-use sqlx::{Sqlite, Transaction};
+use sqlx::{Postgres, Transaction};
 use std::str::FromStr;
 
 #[derive(Deserialize, Debug, Clone)]
@@ -52,7 +52,7 @@ pub enum FancyNewResult {
 async fn _handle_fancy_new_with_trans(
     new_data: web::Json<AddNewData>,
     total_score: &mut f64,
-    db_trans: &mut Transaction<'_, Sqlite>,
+    db_trans: &mut Transaction<'_, Postgres>,
 ) -> FancyNewResult {
     let mut result = if new_data.factory.len() == 42 || new_data.factory.len() == 40 {
         let factory = match web3::types::Address::from_str(&new_data.factory) {

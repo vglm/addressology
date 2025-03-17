@@ -15,7 +15,7 @@ mod update;
 use crate::api::scope::server_api_scope;
 use crate::config::get_base_difficulty_price;
 use crate::cookie::load_key_or_create;
-use crate::db::connection::create_sqlite_connection;
+use crate::db::connection::create_pg_connection;
 use crate::db::model::DeployStatus;
 use crate::db::ops::{
     fancy_list_all, fancy_update_score, get_all_contracts_by_deploy_status_and_network,
@@ -38,7 +38,7 @@ use awc::Client;
 use clap::{Parser, Subcommand};
 use lazy_static::lazy_static;
 use serde::Deserialize;
-use sqlx::SqlitePool;
+use sqlx::PgPool;
 use std::env;
 use std::ops::Sub;
 use std::path::PathBuf;
@@ -74,7 +74,7 @@ lazy_static! {
 }
 
 pub struct ServerData {
-    pub db_connection: Arc<Mutex<SqlitePool>>,
+    pub db_connection: Arc<Mutex<PgPool>>,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -287,7 +287,7 @@ async fn main() -> std::io::Result<()> {
 
     match args.cmd {
         Commands::Server { addr, threads } => {
-            let conn = create_sqlite_connection(Some(&PathBuf::from(args.db)), None, false, true)
+            let conn = create_pg_connection()
                 .await
                 .unwrap();
 
@@ -330,7 +330,7 @@ async fn main() -> std::io::Result<()> {
             .await
         }
         Commands::ScoreFancy { last_day } => {
-            let conn = create_sqlite_connection(Some(&PathBuf::from(args.db)), None, false, true)
+            let conn = create_pg_connection()
                 .await
                 .unwrap();
 
@@ -392,7 +392,7 @@ async fn main() -> std::io::Result<()> {
             Ok(())
         }
         Commands::ProcessDeploy { network } => {
-            let conn = create_sqlite_connection(Some(&PathBuf::from(args.db)), None, false, true)
+            let conn = create_pg_connection()
                 .await
                 .unwrap();
 
@@ -476,7 +476,7 @@ async fn main() -> std::io::Result<()> {
             Ok(())
         }
         Commands::AddFancyAddress { factory, salt } => {
-            let conn = create_sqlite_connection(Some(&PathBuf::from(args.db)), None, false, true)
+            let conn = create_pg_connection()
                 .await
                 .unwrap();
 

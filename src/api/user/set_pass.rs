@@ -8,7 +8,7 @@ use actix_web::web::Data;
 use actix_web::HttpResponse;
 use rand::Rng;
 use serde::Deserialize;
-use sqlx::SqlitePool;
+use sqlx::PgPool;
 use std::time::Duration;
 
 #[derive(Deserialize, Debug, Clone)]
@@ -21,7 +21,7 @@ pub struct SetNewPassData {
 
 pub(super) async fn set_password_to_response(
     session: Session,
-    db_conn: &SqlitePool,
+    db_conn: &PgPool,
     email: &str,
     new_password_hash: &str,
 ) -> HttpResponse {

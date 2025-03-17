@@ -1,8 +1,8 @@
 use crate::db::model::{ContractAddressDbObj, ContractDbObj, DeployStatus};
-use sqlx::{Executor, Sqlite, SqlitePool};
+use sqlx::{Executor, Postgres, PgPool};
 
 pub async fn insert_contract_obj(
-    conn: &SqlitePool,
+    conn: &PgPool,
     contract_data: ContractDbObj,
 ) -> Result<ContractDbObj, sqlx::Error> {
     let res = sqlx::query_as::<_, ContractDbObj>(
@@ -32,7 +32,7 @@ pub async fn get_contract_by_id<'c, E>(
     user_id: String,
 ) -> Result<Option<ContractDbObj>, sqlx::Error>
 where
-    E: Executor<'c, Database = Sqlite>,
+    E: Executor<'c, Database = Postgres>,
 {
     let res = sqlx::query_as::<_, ContractDbObj>(
         r"SELECT * FROM contract WHERE contract_id = $1 AND user_id = $2;",
@@ -49,7 +49,7 @@ pub async fn get_contract_address_list<'c, E>(
     user_id: &str,
 ) -> Result<Vec<ContractAddressDbObj>, sqlx::Error>
 where
-    E: Executor<'c, Database = Sqlite>,
+    E: Executor<'c, Database = Postgres>,
 {
     let res = sqlx::query_as::<_, ContractAddressDbObj>(
         r"SELECT
@@ -74,7 +74,7 @@ where
 }
 
 pub async fn get_all_contracts_by_user(
-    conn: &SqlitePool,
+    conn: &PgPool,
     user_id: String,
 ) -> Result<Vec<ContractDbObj>, sqlx::Error> {
     let res = sqlx::query_as::<_, ContractDbObj>(r"SELECT * FROM contract WHERE user_id=$1")
@@ -85,7 +85,7 @@ pub async fn get_all_contracts_by_user(
 }
 
 pub async fn get_all_contracts_by_deploy_status_and_network(
-    conn: &SqlitePool,
+    conn: &PgPool,
     deploy_status: DeployStatus,
     network: String,
 ) -> Result<Vec<ContractDbObj>, sqlx::Error> {
@@ -110,7 +110,7 @@ pub async fn delete_contract_by_id<'c, E>(
     user_id: String,
 ) -> Result<(), sqlx::Error>
 where
-    E: Executor<'c, Database = Sqlite>,
+    E: Executor<'c, Database = Postgres>,
 {
     sqlx::query(r"DELETE FROM contract WHERE contract_id = $1 AND user_id = $2")
         .bind(contract_id)
@@ -125,7 +125,7 @@ pub async fn update_contract_data<'c, E>(
     contract: ContractDbObj,
 ) -> Result<ContractDbObj, sqlx::Error>
 where
-    E: Executor<'c, Database = Sqlite>,
+    E: Executor<'c, Database = Postgres>,
 {
     let obj = sqlx::query_as::<_, ContractDbObj>(
         r"UPDATE contract
