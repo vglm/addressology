@@ -1,5 +1,6 @@
 use crate::db::model::{ContractAddressDbObj, ContractDbObj, DeployStatus};
-use sqlx::{Executor, Postgres, PgPool};
+use sqlx::types::Uuid;
+use sqlx::{Executor, PgPool, Postgres};
 
 pub async fn insert_contract_obj(
     conn: &PgPool,
@@ -12,7 +13,7 @@ pub async fn insert_contract_obj(
         ",
     )
     .bind(contract_data.contract_id)
-    .bind(&contract_data.user_id)
+    .bind(contract_data.user_id)
     .bind(contract_data.created)
     .bind(&contract_data.network)
     .bind(&contract_data.data)
@@ -29,7 +30,7 @@ pub async fn insert_contract_obj(
 pub async fn get_contract_by_id<'c, E>(
     conn: E,
     contract_id: String,
-    user_id: String,
+    user_id: Uuid,
 ) -> Result<Option<ContractDbObj>, sqlx::Error>
 where
     E: Executor<'c, Database = Postgres>,
@@ -46,7 +47,7 @@ where
 
 pub async fn get_contract_address_list<'c, E>(
     conn: E,
-    user_id: &str,
+    user_id: Uuid,
 ) -> Result<Vec<ContractAddressDbObj>, sqlx::Error>
 where
     E: Executor<'c, Database = Postgres>,
@@ -75,7 +76,7 @@ where
 
 pub async fn get_all_contracts_by_user(
     conn: &PgPool,
-    user_id: String,
+    user_id: Uuid,
 ) -> Result<Vec<ContractDbObj>, sqlx::Error> {
     let res = sqlx::query_as::<_, ContractDbObj>(r"SELECT * FROM contract WHERE user_id=$1")
         .bind(user_id)
@@ -107,7 +108,7 @@ pub async fn get_all_contracts_by_deploy_status_and_network(
 pub async fn delete_contract_by_id<'c, E>(
     conn: E,
     contract_id: String,
-    user_id: String,
+    user_id: Uuid,
 ) -> Result<(), sqlx::Error>
 where
     E: Executor<'c, Database = Postgres>,

@@ -41,7 +41,6 @@ use serde::Deserialize;
 use sqlx::PgPool;
 use std::env;
 use std::ops::Sub;
-use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -287,9 +286,7 @@ async fn main() -> std::io::Result<()> {
 
     match args.cmd {
         Commands::Server { addr, threads } => {
-            let conn = create_pg_connection()
-                .await
-                .unwrap();
+            let conn = create_pg_connection(true).await.unwrap();
 
             HttpServer::new(move || {
                 let cors = actix_cors::Cors::permissive();
@@ -330,9 +327,7 @@ async fn main() -> std::io::Result<()> {
             .await
         }
         Commands::ScoreFancy { last_day } => {
-            let conn = create_pg_connection()
-                .await
-                .unwrap();
+            let conn = create_pg_connection(true).await.unwrap();
 
             let fancies = if last_day {
                 fancy_list_all(
@@ -392,9 +387,7 @@ async fn main() -> std::io::Result<()> {
             Ok(())
         }
         Commands::ProcessDeploy { network } => {
-            let conn = create_pg_connection()
-                .await
-                .unwrap();
+            let conn = create_pg_connection(true).await.unwrap();
 
             let contracts = get_all_contracts_by_deploy_status_and_network(
                 &conn,
@@ -476,9 +469,7 @@ async fn main() -> std::io::Result<()> {
             Ok(())
         }
         Commands::AddFancyAddress { factory, salt } => {
-            let conn = create_pg_connection()
-                .await
-                .unwrap();
+            let conn = create_pg_connection(true).await.unwrap();
 
             let factory = web3::types::Address::from_str(&factory).unwrap();
             let result = match parse_fancy(salt, factory) {

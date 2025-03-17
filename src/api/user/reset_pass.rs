@@ -1,6 +1,7 @@
 use crate::api::user::{ALLOWED_EMAILS, ALLOW_CREATING_NEW_ACCOUNTS, WEB_PORTAL_DOMAIN};
 use crate::db::model::UserDbObj;
 use crate::db::ops::{get_user, insert_user, save_reset_token};
+use crate::db::utils::get_current_utc_time;
 use crate::email::{send_email, Email};
 use crate::ServerData;
 use actix_web::web;
@@ -35,9 +36,9 @@ pub async fn handle_password_reset(
                 return HttpResponse::Unauthorized().body("This email is not allowed");
             }
             // create new user if not found
-            let created_date = chrono::Utc::now();
+            let created_date = get_current_utc_time();
             let user_to_insert = UserDbObj {
-                uid: uuid::Uuid::new_v4().to_string(),
+                uid: uuid::Uuid::new_v4(),
                 email: email.clone(),
                 pass_hash: "000000000000000".to_string(),
                 created_date,
@@ -48,7 +49,7 @@ pub async fn handle_password_reset(
                 set_pass_token_date: None,
                 tokens: 0,
             };
-            match insert_user(&db_conn, &user_to_insert).await {
+            match insert_user(&*db_conn, &user_to_insert).await {
                 Ok(user) => user,
                 Err(err) => {
                     log::error!("Error inserting user: {}", err);
@@ -58,7 +59,7 @@ pub async fn handle_password_reset(
         }
     };
 
-    let at_least_1_minute_ago = chrono::Utc::now() - chrono::Duration::minutes(1);
+    let at_least_1_minute_ago = get_current_utc_time() - chrono::Duration::minutes(1);
     if user
         .set_pass_token_date
         .map(|t| t > at_least_1_minute_ago)

@@ -146,7 +146,7 @@ pub async fn get_all_contract_assignments(
 
     let db = data.db_connection.lock().await;
 
-    match get_contract_address_list(&*db, &user.uid).await {
+    match get_contract_address_list(&*db, user.uid).await {
         Ok(contracts) => HttpResponse::Ok().json(contracts),
         Err(e) => {
             log::error!("Error getting scan info: {}", e);

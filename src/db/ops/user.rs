@@ -1,7 +1,5 @@
-use chrono::NaiveDateTime;
-use crate::db::model::{OauthStageDbObj, PostgresUserDbObj, UserDbObj};
-use sqlx::{Executor, Postgres, PgPool};
-use crate::db::utils::get_current_utc_time;
+use crate::db::model::{OauthStageDbObj, UserDbObj};
+use sqlx::{Executor, PgPool, Postgres};
 
 pub async fn insert_oauth_stage(
     conn: &PgPool,
@@ -42,18 +40,17 @@ pub async fn delete_old_oauth_stages(conn: &PgPool) -> Result<(), sqlx::Error> {
     Ok(())
 }
 
-pub async fn postgres_insert_user<'c, E>(conn: E, user: &PostgresUserDbObj)
-    -> Result<PostgresUserDbObj, sqlx::Error>
+pub async fn insert_user<'c, E>(conn: E, user: &UserDbObj) -> Result<UserDbObj, sqlx::Error>
 where
     E: Executor<'c, Database = Postgres>,
 {
-    Ok(sqlx::query_as::<_, PostgresUserDbObj>(
+    sqlx::query_as::<_, UserDbObj>(
         r"INSERT INTO users
 (uid, email, pass_hash, created_date, last_pass_change, allow_pass_login, allow_google_login, tokens)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *;
 ",
     )
-        .bind(&user.uid)
+        .bind(user.uid)
         .bind(&user.email)
         .bind(&user.pass_hash)
         .bind(user.created_date)
@@ -62,28 +59,7 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *;
         .bind(user.allow_google_login)
         .bind(user.tokens)
         .fetch_one(conn)
-        .await?)
-}
-
-
-pub async fn insert_user(conn: &PgPool, user: &UserDbObj) -> Result<UserDbObj, sqlx::Error> {
-    let res = sqlx::query_as::<_, UserDbObj>(
-        r"INSERT INTO users
-(uid, email, pass_hash, created_date, last_pass_change, allow_pass_login, allow_google_login, tokens)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *;
-",
-    )
-    .bind(&user.uid)
-    .bind(&user.email)
-    .bind(&user.pass_hash)
-    .bind(user.created_date)
-    .bind(user.last_pass_change)
-    .bind(user.allow_pass_login)
-    .bind(user.allow_google_login)
-    .bind(user.tokens)
-    .fetch_one(conn)
-    .await?;
-    Ok(res)
+        .await
 }
 
 pub async fn save_reset_token(
@@ -139,7 +115,7 @@ tokens = $10
 WHERE id = $1
 ",
     )
-    .bind(&user.uid)
+    .bind(user.uid)
     .bind(&user.email)
     .bind(&user.pass_hash)
     .bind(user.created_date)
@@ -165,18 +141,6 @@ where
     Ok(res)
 }
 
-pub async fn postgres_get_user<'c, E>(conn: E, email: &str) -> Result<PostgresUserDbObj, sqlx::Error>
-where
-    E: Executor<'c, Database = Postgres>,
-{
-    let res = sqlx::query_as::<_, PostgresUserDbObj>(r"SELECT * FROM users WHERE email = $1")
-        .bind(email)
-        .fetch_one(conn)
-        .await?;
-    Ok(res)
-}
-
-
 pub async fn update_user_tokens<'c, E>(conn: E, email: &str, tokens: i64) -> Result<(), sqlx::Error>
 where
     E: Executor<'c, Database = Postgres>,
@@ -189,55 +153,15 @@ where
     Ok(())
 }
 
-#[tokio::test]
-async fn tx_test() -> sqlx::Result<()> {
-    println!("Start tx_test...");
-
-    use crate::create_pg_connection;
-    let conn = create_pg_connection()
-        .await
-        .unwrap();
-
-    println!("In memory DB created");
-
-    let created_date = chrono::Utc::now();
-    let last_pass_change = chrono::Utc::now() + chrono::Duration::days(1);
-    let user_to_insert = UserDbObj {
-        uid: uuid::Uuid::new_v4().to_string(),
-        email: "random@mail.domain".to_string(),
-        pass_hash: "324235235".to_string(),
-        created_date,
-        last_pass_change,
-        allow_pass_login: false,
-        allow_google_login: true,
-        set_pass_token: None,
-        set_pass_token_date: None,
-        tokens: 444444444,
-    };
-
-    let user_from_insert = insert_user(&conn, &user_to_insert)
-        .await
-        .expect("insert failed");
-    let user_from_dao = get_user(&conn, &user_from_insert.email)
-        .await
-        .expect("get failed");
-
-    println!("User inserted: {:?}", user_from_insert);
-    //all three should be equal
-    assert_eq!(user_to_insert, user_from_dao);
-    assert_eq!(user_from_insert, user_from_dao);
-
-    Ok(())
-}
-
 #[sqlx::test]
-async fn basic_test(pool: PgPool) -> sqlx::Result<()> {
+async fn user_insert_select_test(pool: PgPool) -> sqlx::Result<()> {
     let mut conn = pool.acquire().await?;
-
+    use crate::db::utils::get_current_utc_time;
+    use sqlx::types::chrono::NaiveDateTime;
     let created_date: NaiveDateTime = get_current_utc_time();
     let last_pass_change = created_date - chrono::Duration::days(1);
 
-    let user_to_insert = PostgresUserDbObj {
+    let user_to_insert = UserDbObj {
         uid: uuid::Uuid::new_v4(),
         email: "random@mail.domain".to_string(),
         pass_hash: "324235235".to_string(),
@@ -250,11 +174,11 @@ async fn basic_test(pool: PgPool) -> sqlx::Result<()> {
         tokens: 444444444,
     };
 
-    let user_from_insert = postgres_insert_user(&mut *conn, &user_to_insert)
+    let user_from_insert = insert_user(&mut *conn, &user_to_insert)
         .await
         .expect("insert failed");
     println!("User inserted: {:?}", user_from_insert);
-    let user_from_dao = postgres_get_user(&mut *conn, &user_from_insert.email)
+    let user_from_dao = get_user(&mut *conn, &user_from_insert.email)
         .await
         .expect("get failed");
 

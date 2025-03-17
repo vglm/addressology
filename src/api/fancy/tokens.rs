@@ -5,10 +5,11 @@ use actix_session::Session;
 use actix_web::web::Data;
 use actix_web::HttpResponse;
 use serde::Serialize;
+use sqlx::types::Uuid;
 
 #[derive(Debug, Clone, Serialize)]
 struct UserTokensResp {
-    uid: String,
+    uid: Uuid,
     email: String,
     tokens: i64,
 }

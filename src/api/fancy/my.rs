@@ -42,7 +42,7 @@ pub async fn handle_my_list(
         log::error!("{}", e);
         actix_web::error::ErrorInternalServerError("Error starting transaction")
     })?;
-    let assignments = match get_contract_address_list(&mut *db_trans, &user.uid).await {
+    let assignments = match get_contract_address_list(&mut *db_trans, user.uid).await {
         Ok(assignments) => assignments,
         Err(e) => {
             log::error!("{}", e);
@@ -53,7 +53,7 @@ pub async fn handle_my_list(
         &mut *db_trans,
         None,
         FancyOrderBy::Score,
-        ReservedStatus::User(user.uid.clone()),
+        ReservedStatus::User(user.uid),
         None,
         PublicKeyFilter::OnlyNull,
         100000000,

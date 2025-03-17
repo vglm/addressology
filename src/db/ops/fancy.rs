@@ -4,7 +4,8 @@ use crate::db::model::{
 };
 use crate::types::DbAddress;
 use chrono::{DateTime, Utc};
-use sqlx::{Executor, Postgres, PgPool, Transaction};
+use sqlx::types::Uuid;
+use sqlx::{Executor, PgPool, Postgres, Transaction};
 
 pub async fn insert_fancy_obj<'c, E>(
     conn: E,
@@ -59,7 +60,7 @@ pub enum ReservedStatus {
     All,
     Reserved,
     NotReserved,
-    User(String),
+    User(Uuid),
 }
 pub enum PublicKeyFilter {
     All,
@@ -69,7 +70,7 @@ pub enum PublicKeyFilter {
 
 pub async fn get_public_key_list<'c, E>(
     conn: E,
-    user_id: Option<String>,
+    user_id: Option<Uuid>,
 ) -> Result<Vec<PublicKeyBaseDbObject>, sqlx::Error>
 where
     E: Executor<'c, Database = Postgres>,
@@ -322,7 +323,7 @@ where
 pub async fn fancy_update_owner<'c, E>(
     conn: E,
     address: DbAddress,
-    owner: String,
+    owner: Uuid,
 ) -> Result<(), sqlx::Error>
 where
     E: Executor<'c, Database = Postgres>,

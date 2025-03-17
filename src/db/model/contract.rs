@@ -2,6 +2,7 @@ use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use sqlx::encode::IsNull;
 use sqlx::error::BoxDynError;
+use sqlx::types::Uuid;
 use sqlx::{Database, Decode, Encode, Postgres};
 use std::fmt::Display;
 use std::str::FromStr;
@@ -74,7 +75,7 @@ where
 #[serde(rename_all = "camelCase")]
 pub struct ContractDbObj {
     pub contract_id: String,
-    pub user_id: String,
+    pub user_id: Uuid,
     pub created: NaiveDateTime,
     pub address: Option<String>,
     pub network: String,

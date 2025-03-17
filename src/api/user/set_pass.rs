@@ -1,6 +1,7 @@
 use crate::api::user::utils::{check_pass, CheckPassResponse};
 use crate::api::user::{pass_to_hash, ALLOWED_EMAILS};
 use crate::db::ops::{get_user, update_user_password};
+use crate::db::utils::get_current_utc_time;
 use crate::ServerData;
 use actix_session::Session;
 use actix_web::web;
@@ -79,7 +80,7 @@ pub async fn handle_password_set(
     {
         return HttpResponse::BadRequest().body("Invalid reset token");
     }
-    let oldest_possible_token_date = chrono::Utc::now() - chrono::Duration::minutes(10);
+    let oldest_possible_token_date = get_current_utc_time() - chrono::Duration::minutes(10);
     if usr
         .set_pass_token_date
         .map(|t| t < oldest_possible_token_date)
