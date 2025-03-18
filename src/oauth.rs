@@ -18,6 +18,7 @@ use oauth2::{
 };
 use serde::Deserialize;
 use sqlx::PgPool;
+use crate::db::utils::get_current_utc_time;
 
 fn get_client(hostname: String) -> Result<BasicClient, AddressologyError> {
     let google_client_id = ClientId::new(var("GOOGLE_CLIENT_ID").unwrap());
@@ -113,7 +114,7 @@ pub async fn create_oauth_query(
         OauthStageDbObj {
             csrf_state: csrf_token.secret().to_string(),
             pkce_code_verifier: pkce_code_verifier.secret().to_string(),
-            created_at: chrono::Utc::now(),
+            created_at: get_current_utc_time(),
         },
     )
     .await

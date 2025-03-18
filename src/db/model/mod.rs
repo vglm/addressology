@@ -37,7 +37,7 @@ pub struct UserDbObj {
 pub struct OauthStageDbObj {
     pub csrf_state: String,
     pub pkce_code_verifier: String,
-    pub created_at: DateTime<Utc>,
+    pub created_at: NaiveDateTime,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Default)]
