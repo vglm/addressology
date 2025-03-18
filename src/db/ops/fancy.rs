@@ -201,7 +201,7 @@ where
     let res = sqlx::query_as::<_, FancyProviderDbObj>(
         format!(
             r"SELECT f.*, mi.prov_name, mi.prov_node_id, mi.prov_reward_addr
-            FROM fancy as f LEFT JOIN job_info as ji ON f.job=ji.uid LEFT JOIN miner_info as mi ON mi.uid=ji.miner
+            FROM fancy as f LEFT JOIN job_info as ji ON f.job_id=ji.uid LEFT JOIN miner_info as mi ON mi.uid=ji.miner
             WHERE {where_clause}
             ORDER BY {order_by_clause}
             {limit_clause}"
