@@ -158,9 +158,9 @@ where
 
     let owner_condition = match reserved {
         ReservedStatus::All => "".to_string(),
-        ReservedStatus::Reserved => "f.owner is NOT NULL".to_string(),
-        ReservedStatus::NotReserved => "f.owner is NULL".to_string(),
-        ReservedStatus::User(user) => format!("f.owner = '{}'", user).to_string(),
+        ReservedStatus::Reserved => "f.owner_id is NOT NULL".to_string(),
+        ReservedStatus::NotReserved => "f.owner_id is NULL".to_string(),
+        ReservedStatus::User(user) => format!("f.owner_id = '{}'", user).to_string(),
     };
 
     let public_key_base_condition = match public_key_base {
@@ -320,13 +320,13 @@ where
 pub async fn fancy_update_owner<'c, E>(
     conn: E,
     address: DbAddress,
-    owner: Uuid,
+    owner_id: Uuid,
 ) -> Result<(), sqlx::Error>
 where
     E: Executor<'c, Database = Postgres>,
 {
-    let _res = sqlx::query(r"UPDATE fancy SET owner = $1 WHERE address = $2;")
-        .bind(owner)
+    let _res = sqlx::query(r"UPDATE fancy SET owner_id = $1 WHERE address = $2;")
+        .bind(owner_id)
         .bind(address)
         .execute(conn)
         .await?;
