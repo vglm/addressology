@@ -7,7 +7,6 @@ use crate::types::DbAddress;
 use chrono::NaiveDateTime;
 
 use crate::fancy::FancyScoreCategory;
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::types::Uuid;
 

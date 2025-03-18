@@ -7,6 +7,7 @@
 use crate::api::user::WEB_PORTAL_DOMAIN;
 use crate::db::model::OauthStageDbObj;
 use crate::db::ops::{delete_old_oauth_stages, insert_oauth_stage};
+use crate::db::utils::get_current_utc_time;
 use crate::err_custom_create;
 use crate::error::AddressologyError;
 use dotenvy::var;
@@ -18,7 +19,6 @@ use oauth2::{
 };
 use serde::Deserialize;
 use sqlx::PgPool;
-use crate::db::utils::get_current_utc_time;
 
 fn get_client(hostname: String) -> Result<BasicClient, AddressologyError> {
     let google_client_id = ClientId::new(var("GOOGLE_CLIENT_ID").unwrap());
