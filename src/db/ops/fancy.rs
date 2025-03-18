@@ -101,7 +101,7 @@ pub async fn get_or_insert_public_key(
         Ok(pk)
     } else {
         let res = sqlx::query_as::<_, PublicKeyBaseDbObject>(
-            r"INSERT INTO public_key_base (id, hex, added) VALUES ($1, $2, $3) RETURNING *;",
+            r"INSERT INTO public_key_base (uid, hex, added) VALUES ($1, $2, $3) RETURNING *;",
         )
         .bind(uuid::Uuid::new_v4().to_string())
         .bind(public_key_base)
@@ -128,7 +128,7 @@ pub async fn get_or_insert_factory(
         Ok(pk)
     } else {
         let res = sqlx::query_as::<_, ContractFactoryDbObject>(
-            r"INSERT INTO contract_factory (id, address, added) VALUES ($1, $2, $3) RETURNING *;",
+            r"INSERT INTO contract_factory (uid, address, added) VALUES ($1, $2, $3) RETURNING *;",
         )
         .bind(uuid::Uuid::new_v4().to_string())
         .bind(factory_address)
