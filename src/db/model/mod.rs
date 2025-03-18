@@ -105,8 +105,8 @@ pub struct FancyProviderDbObj {
     pub category: String,
     pub job_id: Option<Uuid>,
     pub prov_name: String,
-    pub prov_node_id: String,
-    pub prov_reward_addr: String,
+    pub prov_node_id: Option<DbAddress>,
+    pub prov_reward_addr: Option<DbAddress>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
