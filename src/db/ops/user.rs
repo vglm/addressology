@@ -112,7 +112,7 @@ set_pass_token_date = $7,
 allow_pass_login = $8,
 allow_google_login = $9,
 tokens = $10
-WHERE id = $1
+WHERE uid = $1
 ",
     )
     .bind(user.uid)

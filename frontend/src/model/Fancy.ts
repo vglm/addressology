@@ -1,5 +1,5 @@
 export interface PublicKeyBase {
-    id: string;
+    uid: string;
     hex: string;
     added: string;
     user_id: string | null;
