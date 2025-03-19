@@ -14,6 +14,7 @@ pub enum FancyScoreCategory {
     LeadingZeroes,
     LeadingAny,
     LettersHeavy,
+    LeadingPi,
     NumbersOnly,
     ShortLeadingZeroes,
     ShortLeadingAny,
@@ -33,6 +34,7 @@ impl Display for FancyScoreCategory {
             FancyScoreCategory::LeadingZeroes => write!(f, "leading_zeroes"),
             FancyScoreCategory::LeadingAny => write!(f, "leading_any"),
             FancyScoreCategory::LettersHeavy => write!(f, "letters_heavy"),
+            FancyScoreCategory::LeadingPi => write!(f, "leading_pi"),
             FancyScoreCategory::NumbersOnly => write!(f, "numbers_only"),
             FancyScoreCategory::ShortLeadingZeroes => write!(f, "short_leading_zeroes"),
             FancyScoreCategory::ShortLeadingAny => write!(f, "short_leading_any"),
@@ -54,6 +56,7 @@ impl FromStr for FancyScoreCategory {
             "leading_zeroes" => Ok(FancyScoreCategory::LeadingZeroes),
             "leading_any" => Ok(FancyScoreCategory::LeadingAny),
             "letters_heavy" => Ok(FancyScoreCategory::LettersHeavy),
+            "leading_pi" => Ok(FancyScoreCategory::LeadingPi),
             "numbers_only" => Ok(FancyScoreCategory::NumbersOnly),
             "short_leading_zeroes" => Ok(FancyScoreCategory::ShortLeadingZeroes),
             "short_leading_any" => Ok(FancyScoreCategory::ShortLeadingAny),
@@ -105,6 +108,11 @@ pub fn list_score_categories() -> Vec<FancyCategoryInfo> {
                 name: "Letters Heavy".to_string(),
                 description: "The number of letters in the address (ciphers can be different)."
                     .to_string(),
+            }),
+            FancyScoreCategory::LeadingPi => categories.push(FancyCategoryInfo {
+                key: category.to_string(),
+                name: "Leading Pi".to_string(),
+                description: "The number of leading pi digits in the address.".to_string(),
             }),
             FancyScoreCategory::NumbersOnly => categories.push(FancyCategoryInfo {
                 key: category.to_string(),
@@ -366,6 +374,26 @@ pub fn score_fancy(address: Address) -> FancyScore {
         let float_max_number = u256_to_float(max_number);
         float_max_number / float_number
     };
+    //for leading zeroes difficulty is a chance to get the smallest number interpreted as hex number
+    let difficulty_leading_pi = {
+        let target_number =
+            U256::from_str_radix("0x3141592653589793238462643383279502884197", 16).unwrap();
+        let current_number = U256::from_str_radix(address_str, 16).unwrap();
+        let number = if target_number >= current_number {
+            target_number - current_number
+        } else {
+            current_number - target_number
+        };
+        let max_number =
+            U256::from_str_radix("0xffffffffffffffffffffffffffffffffffffffff", 16).unwrap();
+        let u256_to_float = |u256: U256| -> f64 {
+            let u256_str = u256.to_string();
+            u256_str.parse::<f64>().unwrap()
+        };
+        let float_number = u256_to_float(number);
+        let float_max_number = u256_to_float(max_number);
+        float_max_number / float_number
+    };
     let u256_to_float = |u256: U256| -> f64 {
         let u256_str = u256.to_string();
         u256_str.parse::<f64>().unwrap()
@@ -401,6 +429,12 @@ pub fn score_fancy(address: Address) -> FancyScore {
         category: FancyScoreCategory::LeadingZeroes,
         score: leading_zeroes as f64,
         difficulty: difficulty_leading_zeroes,
+    });
+
+    score_entries.push(FancyScoreEntry {
+        category: FancyScoreCategory::LeadingPi,
+        score: 40.0f64,
+        difficulty: difficulty_leading_pi,
     });
 
     score_entries.push(FancyScoreEntry {
