@@ -38,13 +38,15 @@ pub struct ReportedExtraInfo {
 
 #[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct AddNewData2 {
+pub struct AddNewDataMany {
     pub data: Vec<AddNewDataEntry>,
     pub extra: ReportedExtraInfo,
 }
 
 pub enum FancyNewResult {
     Ok(HttpResponse),
+    ParseError(String),
+    Duplicate,
     Error(HttpResponse),
     ScoreTooLow,
 }
@@ -59,14 +61,14 @@ async fn _handle_fancy_new_with_trans(
             Ok(factory) => factory,
             Err(e) => {
                 log::error!("{}", e);
-                return FancyNewResult::Error(HttpResponse::BadRequest().finish());
+                return FancyNewResult::ParseError("Invalid factory address".to_string());
             }
         };
         let fancy = match parse_fancy(new_data.salt.clone(), factory) {
             Ok(fancy) => fancy,
             Err(e) => {
                 log::error!("{}", e);
-                return FancyNewResult::Error(HttpResponse::InternalServerError().finish());
+                return FancyNewResult::ParseError(format!("parse error: {e}"));
             }
         };
         match get_or_insert_factory(db_trans, DbAddress::from_h160(factory)).await {
@@ -83,27 +85,26 @@ async fn _handle_fancy_new_with_trans(
         let public_key_bytes = match hex::decode(public_key_base.replace("0x", "")) {
             Ok(bytes) => bytes,
             Err(e) => {
-                log::error!("{}", e);
-                return FancyNewResult::Error(HttpResponse::BadRequest().finish());
+                return FancyNewResult::ParseError(format!("Invalid public key {e}"));
             }
         };
         if public_key_bytes.len() != 64 {
-            log::error!("Invalid public key length: {}", public_key_base);
-            return FancyNewResult::Error(HttpResponse::BadRequest().finish());
+            return FancyNewResult::ParseError(format!(
+                "Invalid public key length, should be 64: {}",
+                public_key_base.len()
+            ));
         }
         let public_key_base = "0x".to_string() + &hex::encode(public_key_bytes);
         let fancy = match parse_fancy_private(public_key_base, new_data.salt.clone()) {
             Ok(fancy) => fancy,
             Err(e) => {
-                log::error!("{}", e);
-                return FancyNewResult::Error(HttpResponse::InternalServerError().finish());
+                return FancyNewResult::ParseError(format!("{}", e));
             }
         };
         let public_key_base = match fancy.public_key_base.clone() {
             Some(key) => key,
             None => {
-                log::error!("Public key not found after parse");
-                return FancyNewResult::Error(HttpResponse::InternalServerError().finish());
+                return FancyNewResult::ParseError("Public key not found after parse".to_string());
             }
         };
         match get_or_insert_public_key(db_trans, &public_key_base).await {
@@ -123,13 +124,13 @@ async fn _handle_fancy_new_with_trans(
         return FancyNewResult::ScoreTooLow;
     }
 
-    if format!("{:#x}", result.address.addr()) != new_data.address.to_lowercase() {
-        log::error!(
+    let gen_address = format!("{:#x}", result.address.addr());
+    if gen_address != new_data.address.to_lowercase() {
+        return FancyNewResult::ParseError(format!(
             "Address mismatch expected: {}, got: {}",
-            format!("{:#x}", result.address.addr()),
+            gen_address,
             new_data.address.to_lowercase()
-        );
-        return FancyNewResult::Error(HttpResponse::BadRequest().body("Address mismatch"));
+        ));
     }
     let score = result.score;
 
@@ -142,7 +143,7 @@ async fn _handle_fancy_new_with_trans(
         }
         Err(e) => {
             if e.to_string().contains("UNIQUE constraint failed") {
-                FancyNewResult::Ok(HttpResponse::Ok().body("Already exists"))
+                FancyNewResult::Duplicate
             } else {
                 log::error!("{}", e);
                 FancyNewResult::Error(HttpResponse::InternalServerError().finish())
@@ -153,10 +154,9 @@ async fn _handle_fancy_new_with_trans(
 
 pub async fn handle_fancy_new_many(
     server_data: web::Data<Box<ServerData>>,
-    new_data: web::Json<AddNewData2>,
+    new_data: web::Json<AddNewDataMany>,
 ) -> HttpResponse {
     let mut total_score = 0.0;
-
     let conn = server_data.db_connection.lock().await;
     let mut db_trans = match conn.begin().await {
         Ok(db) => db,
@@ -175,6 +175,7 @@ pub async fn handle_fancy_new_many(
 
     let mut entries_accepted = 0;
     let mut entries_rejected = 0;
+    let mut entries_parse_error = 0;
     for data in new_data.data.iter() {
         let new_data = AddNewData {
             salt: data.salt.clone(),
@@ -188,6 +189,15 @@ pub async fn handle_fancy_new_many(
         match resp {
             FancyNewResult::Ok(_ok) => {
                 entries_accepted += 1;
+            }
+            FancyNewResult::Duplicate => {
+                entries_rejected += 1;
+            }
+            FancyNewResult::ParseError(err) => {
+                //this log can become performance issue, probably should rate limit it
+                log::warn!("Error parsing fancy: {}", err);
+                entries_rejected += 1;
+                entries_parse_error += 1;
             }
             FancyNewResult::Error(err) => {
                 return err;
@@ -225,6 +235,8 @@ pub async fn handle_fancy_new_many(
     };
 
     HttpResponse::Ok().json(json!({
-        "totalScore": total_score
+        "totalScore": total_score,
+        "entriesRejected": entries_rejected,
+        "entriesParseError": entries_parse_error,
     }))
 }
