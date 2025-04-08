@@ -81,7 +81,8 @@ pub async fn handle_google_callback(
                 }
                 Err(err) => {
                     log::error!("Error getting user: {}", err);
-                    Ok(HttpResponse::InternalServerError().body("Failed to get user"))
+                    Ok(HttpResponse::InternalServerError()
+                        .body(format!("Failed to get user {}", email)))
                 }
             }
         } else {
