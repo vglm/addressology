@@ -2,7 +2,7 @@ use rustc_hex::FromHexError;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use sqlx::encode::IsNull;
 use sqlx::error::BoxDynError;
-use sqlx::{Database, Decode, Encode, Sqlite};
+use sqlx::{Database, Decode, Encode, Postgres};
 use std::fmt::Display;
 use std::str::FromStr;
 use web3::types::{Address, H160, U256};
@@ -56,12 +56,12 @@ impl Display for DbBigInt {
     }
 }
 
-impl sqlx::Type<Sqlite> for DbBigInt {
-    fn type_info() -> <Sqlite as Database>::TypeInfo {
-        <String as sqlx::Type<Sqlite>>::type_info()
+impl sqlx::Type<Postgres> for DbBigInt {
+    fn type_info() -> <Postgres as Database>::TypeInfo {
+        <String as sqlx::Type<Postgres>>::type_info()
     }
-    fn compatible(ty: &<Sqlite as Database>::TypeInfo) -> bool {
-        <String as sqlx::Type<Sqlite>>::compatible(ty)
+    fn compatible(ty: &<Postgres as Database>::TypeInfo) -> bool {
+        <String as sqlx::Type<Postgres>>::compatible(ty)
     }
 }
 
@@ -133,12 +133,12 @@ impl Display for DbAddress {
     }
 }
 
-impl sqlx::Type<Sqlite> for DbAddress {
-    fn type_info() -> <Sqlite as Database>::TypeInfo {
-        <String as sqlx::Type<Sqlite>>::type_info()
+impl sqlx::Type<Postgres> for DbAddress {
+    fn type_info() -> <Postgres as Database>::TypeInfo {
+        <String as sqlx::Type<Postgres>>::type_info()
     }
-    fn compatible(ty: &<Sqlite as Database>::TypeInfo) -> bool {
-        <String as sqlx::Type<Sqlite>>::compatible(ty)
+    fn compatible(ty: &<Postgres as Database>::TypeInfo) -> bool {
+        <String as sqlx::Type<Postgres>>::compatible(ty)
     }
 }
 

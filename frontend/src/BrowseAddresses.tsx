@@ -247,7 +247,7 @@ const BrowseAddresses = () => {
                 <MenuItem value={"none"}>None</MenuItem>
                 {publicKeyBases.map((publicKeyBase) => {
                     return (
-                        <MenuItem key={publicKeyBase.id} value={publicKeyBase.hex}>
+                        <MenuItem key={publicKeyBase.uid} value={publicKeyBase.hex}>
                             {publicKeyBase.hex.slice(0, 10)}...
                         </MenuItem>
                     );

@@ -15,12 +15,13 @@ mod update;
 use crate::api::scope::server_api_scope;
 use crate::config::get_base_difficulty_price;
 use crate::cookie::load_key_or_create;
-use crate::db::connection::create_sqlite_connection;
+use crate::db::connection::create_pg_connection;
 use crate::db::model::DeployStatus;
 use crate::db::ops::{
     fancy_list_all, fancy_update_score, get_all_contracts_by_deploy_status_and_network,
     insert_fancy_obj,
 };
+use crate::db::utils::get_current_utc_time;
 use crate::deploy::handle_fancy_deploy;
 use crate::fancy::parse_fancy;
 use crate::fancy::score_fancy;
@@ -38,10 +39,8 @@ use awc::Client;
 use clap::{Parser, Subcommand};
 use lazy_static::lazy_static;
 use serde::Deserialize;
-use sqlx::SqlitePool;
+use sqlx::PgPool;
 use std::env;
-use std::ops::Sub;
-use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -74,7 +73,7 @@ lazy_static! {
 }
 
 pub struct ServerData {
-    pub db_connection: Arc<Mutex<SqlitePool>>,
+    pub db_connection: Arc<Mutex<PgPool>>,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -287,9 +286,7 @@ async fn main() -> std::io::Result<()> {
 
     match args.cmd {
         Commands::Server { addr, threads } => {
-            let conn = create_sqlite_connection(Some(&PathBuf::from(args.db)), None, false, true)
-                .await
-                .unwrap();
+            let conn = create_pg_connection(true).await.unwrap();
 
             HttpServer::new(move || {
                 let cors = actix_cors::Cors::permissive();
@@ -330,14 +327,12 @@ async fn main() -> std::io::Result<()> {
             .await
         }
         Commands::ScoreFancy { last_day } => {
-            let conn = create_sqlite_connection(Some(&PathBuf::from(args.db)), None, false, true)
-                .await
-                .unwrap();
+            let conn = create_pg_connection(true).await.unwrap();
 
             let fancies = if last_day {
                 fancy_list_all(
                     &conn,
-                    Some(chrono::Utc::now().sub(chrono::Duration::days(1))),
+                    Some(get_current_utc_time() - chrono::Duration::days(1)),
                 )
                 .await
                 .unwrap()
@@ -392,9 +387,7 @@ async fn main() -> std::io::Result<()> {
             Ok(())
         }
         Commands::ProcessDeploy { network } => {
-            let conn = create_sqlite_connection(Some(&PathBuf::from(args.db)), None, false, true)
-                .await
-                .unwrap();
+            let conn = create_pg_connection(true).await.unwrap();
 
             let contracts = get_all_contracts_by_deploy_status_and_network(
                 &conn,
@@ -476,9 +469,7 @@ async fn main() -> std::io::Result<()> {
             Ok(())
         }
         Commands::AddFancyAddress { factory, salt } => {
-            let conn = create_sqlite_connection(Some(&PathBuf::from(args.db)), None, false, true)
-                .await
-                .unwrap();
+            let conn = create_pg_connection(true).await.unwrap();
 
             let factory = web3::types::Address::from_str(&factory).unwrap();
             let result = match parse_fancy(salt, factory) {

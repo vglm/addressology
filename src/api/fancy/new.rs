@@ -8,8 +8,9 @@ use crate::ServerData;
 use actix_web::{web, HttpResponse};
 use serde::Deserialize;
 use serde_json::json;
-use sqlx::{Sqlite, Transaction};
+use sqlx::{Postgres, Transaction};
 use std::str::FromStr;
+use uuid::Uuid;
 
 #[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -17,7 +18,7 @@ pub struct AddNewData {
     pub salt: String,
     pub factory: String,
     pub address: Option<String>,
-    pub job_id: Option<String>,
+    pub job_id: Option<Uuid>,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -31,7 +32,7 @@ pub struct AddNewDataEntry {
 #[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ReportedExtraInfo {
-    pub job_id: String,
+    pub job_id: Uuid,
     pub reported_hashes: f64,
     pub reported_cost: f64,
 }
@@ -54,21 +55,21 @@ pub enum FancyNewResult {
 async fn _handle_fancy_new_with_trans(
     new_data: web::Json<AddNewData>,
     total_score: &mut f64,
-    db_trans: &mut Transaction<'_, Sqlite>,
+    db_trans: &mut Transaction<'_, Postgres>,
 ) -> FancyNewResult {
     let mut result = if new_data.factory.len() == 42 || new_data.factory.len() == 40 {
         let factory = match web3::types::Address::from_str(&new_data.factory) {
             Ok(factory) => factory,
             Err(e) => {
                 log::error!("{}", e);
-                return FancyNewResult::ParseError("Invalid factory address".to_string());
+                return FancyNewResult::Error(HttpResponse::BadRequest().finish());
             }
         };
         let fancy = match parse_fancy(new_data.salt.clone(), factory) {
             Ok(fancy) => fancy,
             Err(e) => {
                 log::error!("{}", e);
-                return FancyNewResult::ParseError(format!("parse error: {e}"));
+                return FancyNewResult::Error(HttpResponse::InternalServerError().finish());
             }
         };
         match get_or_insert_factory(db_trans, DbAddress::from_h160(factory)).await {
@@ -117,7 +118,7 @@ async fn _handle_fancy_new_with_trans(
         fancy
     };
 
-    result.job = new_data.job_id.clone();
+    result.job_id = new_data.job_id;
 
     if result.score < 1E10 {
         log::debug!("Score too low: {}", result.score);
@@ -167,7 +168,7 @@ pub async fn handle_fancy_new_many(
             return HttpResponse::InternalServerError().finish();
         }
     };
-    let find_job = match fancy_get_job_info(&mut *db_trans, &new_data.extra.job_id).await {
+    let find_job = match fancy_get_job_info(&mut *db_trans, new_data.extra.job_id).await {
         Ok(job) => job,
         Err(e) => {
             log::error!("{}", e);
@@ -183,7 +184,7 @@ pub async fn handle_fancy_new_many(
             salt: data.salt.clone(),
             factory: data.factory.clone(),
             address: data.address.clone(),
-            job_id: Some(new_data.extra.job_id.clone()),
+            job_id: Some(new_data.extra.job_id),
         };
         let resp =
             _handle_fancy_new_with_trans(web::Json(new_data), &mut total_score, &mut db_trans)
@@ -213,7 +214,7 @@ pub async fn handle_fancy_new_many(
 
     match fancy_update_job(
         &mut *db_trans,
-        &find_job.uid,
+        find_job.uid,
         find_job.hashes_accepted + total_score,
         new_data.extra.reported_hashes,
         entries_accepted,

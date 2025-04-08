@@ -1,7 +1,7 @@
-name: Build
+ name: Build
 on:
   push:
-    branches: [ "main", "actions/build" ]
+    branches: [ "main", "actions/build", "postgres" ]
   pull_request:
     branches: [ "main" ]
 
@@ -37,7 +37,7 @@ jobs:
           ./addresser server --addr localhost:57888&
 
       - name: Auto update dev
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/postgres'
         run: |
           curl -i -H "Update-Secret:${{ secrets.UPDATE_SECRET }}" -X POST -F file=@target/release/addresser https://addressology.net/service/update
           

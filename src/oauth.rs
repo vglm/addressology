@@ -7,6 +7,7 @@
 use crate::api::user::WEB_PORTAL_DOMAIN;
 use crate::db::model::OauthStageDbObj;
 use crate::db::ops::{delete_old_oauth_stages, insert_oauth_stage};
+use crate::db::utils::get_current_utc_time;
 use crate::err_custom_create;
 use crate::error::AddressologyError;
 use dotenvy::var;
@@ -19,7 +20,7 @@ use oauth2::{
     RequestTokenError, RevocationUrl, Scope, StandardRevocableToken, TokenResponse, TokenUrl,
 };
 use serde::Deserialize;
-use sqlx::SqlitePool;
+use sqlx::PgPool;
 
 type MyBasicClient = oauth2::Client<
     oauth2::basic::BasicErrorResponse,
@@ -98,7 +99,7 @@ pub async fn verify_access_token(
 }
 
 pub async fn create_oauth_query(
-    db_conn: SqlitePool,
+    db_conn: PgPool,
     hostname: String,
 ) -> Result<String, AddressologyError> {
     let (pkce_challenge, pkce_code_verifier) = PkceCodeChallenge::new_random_sha256();
@@ -125,7 +126,7 @@ pub async fn create_oauth_query(
         OauthStageDbObj {
             csrf_state: csrf_token.secret().to_string(),
             pkce_code_verifier: pkce_code_verifier.secret().to_string(),
-            created_at: chrono::Utc::now(),
+            created_at: get_current_utc_time(),
         },
     )
     .await

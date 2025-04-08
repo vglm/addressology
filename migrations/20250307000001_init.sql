@@ -1,127 +1,104 @@
-CREATE TABLE users
-(
-    uid                 TEXT NOT NULL,
-    email               TEXT NOT NULL,
+CREATE TABLE users (
+    uid                 UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    email               TEXT NOT NULL UNIQUE,
     pass_hash           TEXT,
-    created_date        TEXT NOT NULL,
-    last_pass_change    TEXT NOT NULL,
-
+    created_date        TIMESTAMP NOT NULL DEFAULT now(),
+    last_pass_change    TIMESTAMP NOT NULL,
     set_pass_token      TEXT,
-    set_pass_token_date TEXT,
-
-    allow_pass_login    INT NULL,
-    allow_google_login  INT NULL,
-
-    tokens              INTEGER NOT NULL DEFAULT 1000000,
-
-    CONSTRAINT users_pk PRIMARY KEY (uid),
-    CONSTRAINT idx_users_email UNIQUE (email)
-) STRICT;
+    set_pass_token_date TIMESTAMP,
+    allow_pass_login    BOOLEAN,
+    allow_google_login  BOOLEAN,
+    tokens              BIGINT NOT NULL DEFAULT 1000000
+);
 
 CREATE TABLE oauth_stage (
-    csrf_state TEXT NOT NULL,
+    csrf_state TEXT NOT NULL PRIMARY KEY,
     pkce_code_verifier TEXT NOT NULL,
-    created_at TEXT,
-
-    CONSTRAINT oauth_stage_pk PRIMARY KEY (csrf_state)
+    created_at TIMESTAMP
 );
 
 CREATE INDEX oauth_stage_created_at_idx ON oauth_stage (created_at);
 
 CREATE TABLE miner_info (
-    uid TEXT NOT NULL,
+    uid VARCHAR(64) NOT NULL PRIMARY KEY,
     prov_node_id TEXT NULL,
     prov_reward_addr TEXT NULL,
     prov_name TEXT NULL,
-    prov_extra_info TEXT NULL,
-    CONSTRAINT miner_info_pk PRIMARY KEY (uid)
-) STRICT;
+    prov_extra_info TEXT NULL
+);
 
 CREATE TABLE job_info (
-    uid TEXT NOT NULL,
+    uid UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     cruncher_ver TEXT NOT NULL,
-    started_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL,
-    finished_at TEXT NULL,
+    started_at TIMESTAMP NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP NOT NULL DEFAULT now(),
+    finished_at TIMESTAMP NULL,
     requestor_id TEXT NULL,
-    hashes_reported REAL NOT NULL,
-    hashes_accepted REAL NOT NULL,
-    entries_accepted INTEGER NOT NULL,
-    entries_rejected INTEGER NOT NULL,
-    cost_reported REAL NOT NULL,
-    miner TEXT NULL,
+    hashes_reported DOUBLE PRECISION NOT NULL,
+    hashes_accepted DOUBLE PRECISION NOT NULL,
+    entries_accepted BIGINT NOT NULL,
+    entries_rejected BIGINT NOT NULL,
+    cost_reported DOUBLE PRECISION NOT NULL,
+    miner VARCHAR(64) NULL,
     job_extra_info TEXT NULL,
-    CONSTRAINT job_info_pk PRIMARY KEY (uid),
-    FOREIGN KEY (miner) REFERENCES miner_info (uid)
-) STRICT;
+    FOREIGN KEY (miner) REFERENCES miner_info (uid) ON DELETE CASCADE
+);
 
 CREATE INDEX job_info_started_at_idx ON job_info (started_at);
 CREATE INDEX job_info_updated_at_idx ON job_info (updated_at);
 CREATE INDEX job_info_finished_at_idx ON job_info (finished_at);
 
 CREATE TABLE contract_factory (
-    id TEXT NOT NULL,
-    address TEXT NOT NULL,
+    uid UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    address TEXT UNIQUE NOT NULL,
     added TEXT NOT NULL,
-    user_id TEXT NULL,
-    CONSTRAINT public_key_base_pk PRIMARY KEY (id),
-    CONSTRAINT public_key_base_address2 UNIQUE (address),
+    user_id UUID NULL,
     FOREIGN KEY (user_id) REFERENCES users (uid)
-) STRICT;
+);
 
 CREATE TABLE public_key_base (
-    id TEXT NOT NULL,
-    hex TEXT NOT NULL,
-    added TEXT NOT NULL,
-    user_id TEXT NULL,
-    CONSTRAINT public_key_base_pk PRIMARY KEY (id),
-    CONSTRAINT public_key_base_hex2 UNIQUE (hex),
+    uid UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    hex TEXT UNIQUE NOT NULL,
+    added TIMESTAMP NOT NULL,
+    user_id UUID NULL,
     FOREIGN KEY (user_id) REFERENCES users (uid)
-) STRICT;
+);
 
 CREATE TABLE fancy (
-    address TEXT NOT NULL,
-    salt TEXT NOT NULL,
-    factory TEXT NULL,
-    public_key_base TEXT NULL,
-    created TEXT NOT NULL,
-    score REAL NOT NULL,
-    job TEXT NULL,
-    owner TEXT NULL,
-    price INTEGER NOT NULL DEFAULT 1000,
-    category TEXT NULL,
-    CONSTRAINT fancy_pk PRIMARY KEY (address),
-    CONSTRAINT fancy_fk FOREIGN KEY (job) REFERENCES job_info (uid),
-    CONSTRAINT fancy_fk1 FOREIGN KEY (owner) REFERENCES users (uid),
+    address                 VARCHAR(42) NOT NULL PRIMARY KEY,
+    salt                    TEXT NOT NULL,
+    factory                 TEXT NULL,
+    public_key_base         TEXT NULL,
+    created                 TIMESTAMP NOT NULL DEFAULT now(),
+    score                   DOUBLE PRECISION NOT NULL,
+    job_id                  UUID NULL,
+    owner_id                UUID NULL,
+    price                   BIGINT NOT NULL DEFAULT 1000,
+    category                TEXT NULL,
+    CONSTRAINT fancy_fk FOREIGN KEY (job_id) REFERENCES job_info (uid),
+    CONSTRAINT fancy_fk1 FOREIGN KEY (owner_id) REFERENCES users (uid),
     CONSTRAINT fancy_fk2 FOREIGN KEY (public_key_base) REFERENCES public_key_base (hex) ON DELETE CASCADE,
     CONSTRAINT fancy_fk3 FOREIGN KEY (factory) REFERENCES contract_factory (address) ON DELETE CASCADE
-) STRICT;
+);
 
-CREATE INDEX fancy_owner_idx ON fancy (owner);
-CREATE INDEX fancy_price_idx ON fancy (price);
-CREATE INDEX fancy_score_idx ON fancy (score);
-CREATE INDEX fancy_factory_idx ON fancy (factory);
-CREATE INDEX fancy_category_idx ON fancy (category);
-CREATE INDEX fancy_public_key_base_idx ON fancy (public_key_base);
 
 CREATE TABLE contract
 (
-    contract_id TEXT NOT NULL,
-    user_id     TEXT NOT NULL,
-    created     TEXT NOT NULL,
-    address     TEXT NULL,
-    network     TEXT NOT NULL,
-    data        TEXT NOT NULL,
-    tx          TEXT NULL,
-    deployed    TEXT NULL,
-    deploy_status TEXT NOT NULL DEFAULT '',
-    deploy_requested TEXT NULL,
-    deploy_sent TEXT NULL,
+    contract_id         UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id             UUID NOT NULL,
+    created             TIMESTAMP NOT NULL DEFAULT now(),
+    address             TEXT NULL,
+    network             TEXT NOT NULL,
+    data                TEXT NOT NULL,
+    tx                  TEXT NULL,
+    deployed            TEXT NULL,
+    deploy_status       TEXT NOT NULL DEFAULT '',
+    deploy_requested    TIMESTAMP NULL,
+    deploy_sent         TIMESTAMP NULL,
 
     FOREIGN KEY (user_id) REFERENCES users (uid),
-    FOREIGN KEY (address) REFERENCES fancy (address),
-    CONSTRAINT contract_pk PRIMARY KEY (contract_id)
-) STRICT;
+    FOREIGN KEY (address) REFERENCES fancy (address)
+);
 
-CREATE UNIQUE INDEX unique_address_network_idx on contract (address, network);
+CREATE UNIQUE INDEX contract_address_network_idx ON contract (address, network);
 

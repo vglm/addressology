@@ -14,7 +14,7 @@ pub async fn handle_fancy_deploy_start(
 
     let conn = server_data.db_connection.lock().await;
 
-    let contract = match get_contract_by_id(&*conn, contract_id, user.uid.clone()).await {
+    let contract = match get_contract_by_id(&*conn, contract_id, user.uid).await {
         Ok(Some(contract)) => {
             let mut contract = contract;
             match contract.deploy_status {

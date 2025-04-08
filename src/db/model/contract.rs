@@ -2,7 +2,8 @@ use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use sqlx::encode::IsNull;
 use sqlx::error::BoxDynError;
-use sqlx::{Database, Decode, Encode, Sqlite};
+use sqlx::types::Uuid;
+use sqlx::{Database, Decode, Encode, Postgres};
 use std::fmt::Display;
 use std::str::FromStr;
 
@@ -42,12 +43,12 @@ impl Display for DeployStatus {
     }
 }
 
-impl sqlx::Type<sqlx::Sqlite> for DeployStatus {
-    fn type_info() -> <Sqlite as sqlx::Database>::TypeInfo {
-        <String as sqlx::Type<Sqlite>>::type_info()
+impl sqlx::Type<sqlx::Postgres> for DeployStatus {
+    fn type_info() -> <Postgres as sqlx::Database>::TypeInfo {
+        <String as sqlx::Type<Postgres>>::type_info()
     }
-    fn compatible(ty: &<Sqlite as sqlx::Database>::TypeInfo) -> bool {
-        <String as sqlx::Type<Sqlite>>::compatible(ty)
+    fn compatible(ty: &<Postgres as sqlx::Database>::TypeInfo) -> bool {
+        <String as sqlx::Type<Postgres>>::compatible(ty)
     }
 }
 
@@ -74,7 +75,7 @@ where
 #[serde(rename_all = "camelCase")]
 pub struct ContractDbObj {
     pub contract_id: String,
-    pub user_id: String,
+    pub user_id: Uuid,
     pub created: NaiveDateTime,
     pub address: Option<String>,
     pub network: String,

@@ -14,7 +14,7 @@ const LOCKED_TIMEOUT: Duration = Duration::from_secs(300);
 #[allow(dead_code)]
 ///Usage example:
 /// do_ops_until_not_locked(|| get_all_token_transfers(&conn, None)).await?;
-/// Sqlite database likes to return this error randomly, when used by more processes so it's good to
+/// Postgres database likes to return this error randomly, when used by more processes so it's good to
 /// ignore and retry until success.
 pub async fn do_db_operation<R, Fun, Fut>(operation: Fun) -> Result<R, sqlx::Error>
 where

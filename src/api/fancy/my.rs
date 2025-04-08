@@ -10,6 +10,7 @@ use actix_session::Session;
 use actix_web::{web, HttpRequest, HttpResponse};
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
+use sqlx::types::Uuid;
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -19,13 +20,13 @@ pub struct FancyProviderContractApi {
     pub factory: DbAddress,
     pub created: NaiveDateTime,
     pub score: f64,
-    pub owner: Option<String>,
+    pub owner_id: Option<Uuid>,
     pub price: i64,
     pub category: String,
-    pub job: Option<String>,
+    pub job_id: Option<Uuid>,
     pub prov_name: String,
-    pub prov_node_id: String,
-    pub prov_reward_addr: String,
+    pub prov_node_id: Option<DbAddress>,
+    pub prov_reward_addr: Option<DbAddress>,
     pub assigned_contracts: Vec<ContractAddressDbObj>,
 }
 
@@ -42,7 +43,7 @@ pub async fn handle_my_list(
         log::error!("{}", e);
         actix_web::error::ErrorInternalServerError("Error starting transaction")
     })?;
-    let assignments = match get_contract_address_list(&mut *db_trans, &user.uid).await {
+    let assignments = match get_contract_address_list(&mut *db_trans, user.uid).await {
         Ok(assignments) => assignments,
         Err(e) => {
             log::error!("{}", e);
@@ -53,7 +54,7 @@ pub async fn handle_my_list(
         &mut *db_trans,
         None,
         FancyOrderBy::Score,
-        ReservedStatus::User(user.uid.clone()),
+        ReservedStatus::User(user.uid),
         None,
         PublicKeyFilter::OnlyNull,
         100000000,
@@ -88,10 +89,10 @@ pub async fn handle_my_list(
             })?,
             created: fancy.created,
             score: fancy.score,
-            owner: fancy.owner,
+            owner_id: fancy.owner_id,
             price: fancy.price,
             category: fancy.category,
-            job: fancy.job,
+            job_id: fancy.job_id,
             prov_name: fancy.prov_name,
             prov_node_id: fancy.prov_node_id,
             prov_reward_addr: fancy.prov_reward_addr,

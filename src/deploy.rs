@@ -3,10 +3,10 @@ use crate::db::ops::{fancy_get_by_address, update_contract_data};
 use crate::error::AddressologyError;
 use crate::types::DbAddress;
 use crate::{err_custom_create, DeployData};
-use sqlx::SqlitePool;
+use sqlx::PgPool;
 
 pub async fn handle_fancy_deploy(
-    conn: &SqlitePool,
+    conn: &PgPool,
     contract: ContractDbObj,
 ) -> Result<(), AddressologyError> {
     let address = contract

@@ -44,7 +44,7 @@ pub async fn handle_fancy_buy_api(
         }
     };
 
-    if address_db.owner.is_some() {
+    if address_db.owner_id.is_some() {
         log::error!("Address already owned: {}", address);
         return HttpResponse::BadRequest().body("Address already owned");
     }
@@ -58,7 +58,7 @@ pub async fn handle_fancy_buy_api(
         return HttpResponse::BadRequest().body("Insufficient funds");
     }
 
-    match fancy_update_owner(&mut *trans, address, user.uid.clone()).await {
+    match fancy_update_owner(&mut *trans, address, user.uid).await {
         Ok(_) => {}
         Err(err) => {
             log::error!("Error updating owner: {}", err);

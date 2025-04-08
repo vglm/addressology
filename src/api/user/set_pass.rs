@@ -1,6 +1,7 @@
 use crate::api::user::utils::{check_pass, CheckPassResponse};
 use crate::api::user::{pass_to_hash, ALLOWED_EMAILS};
 use crate::db::ops::{get_user, update_user_password};
+use crate::db::utils::get_current_utc_time;
 use crate::ServerData;
 use actix_session::Session;
 use actix_web::web;
@@ -8,7 +9,7 @@ use actix_web::web::Data;
 use actix_web::HttpResponse;
 use rand::Rng;
 use serde::Deserialize;
-use sqlx::SqlitePool;
+use sqlx::PgPool;
 use std::time::Duration;
 
 #[derive(Deserialize, Debug, Clone)]
@@ -21,7 +22,7 @@ pub struct SetNewPassData {
 
 pub(super) async fn set_password_to_response(
     session: Session,
-    db_conn: &SqlitePool,
+    db_conn: &PgPool,
     email: &str,
     new_password_hash: &str,
 ) -> HttpResponse {
@@ -79,7 +80,7 @@ pub async fn handle_password_set(
     {
         return HttpResponse::BadRequest().body("Invalid reset token");
     }
-    let oldest_possible_token_date = chrono::Utc::now() - chrono::Duration::minutes(10);
+    let oldest_possible_token_date = get_current_utc_time() - chrono::Duration::minutes(10);
     if usr
         .set_pass_token_date
         .map(|t| t < oldest_possible_token_date)
