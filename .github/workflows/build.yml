@@ -31,10 +31,13 @@ jobs:
 
       - name: Run server for simple tests
         run: |
+          docker run --rm --name postgres-tests -e POSTGRES_USER=addresser_user -e POSTGRES_PASSWORD=addresser_pass -e POSTGRES_DB=addresser_db -p 5432:5432 -d postgres
           mkdir testing
           cp target/release/addresser testing/
           cd testing
           ./addresser server --addr localhost:57888&
+        env:
+          DATABASE_URL: postgres://addresser_user:addresser_pass@127.0.0.1:5432/addresser_db
 
       - name: Auto update dev
         if: github.event_name == 'push' && github.ref == 'refs/heads/postgres'
