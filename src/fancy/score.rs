@@ -577,23 +577,22 @@ mod tests {
     fn test_brute_force_letters() {
         for num_ciphers in 2..6 {
             let mut total = 0;
-            let mut letters = Vec::new();
-            letters.resize(num_ciphers + 1, 0);
+            let mut letters = vec![0; num_ciphers + 1];
 
             let number_max_str = "F".repeat(num_ciphers);
             let number_max = u64::from_str_radix(&number_max_str, 16).unwrap();
 
-            let mut chars = Vec::new();
-            chars.resize(num_ciphers + 1, 0);
+            let mut chars = vec![0; num_ciphers + 1];
 
-            let mut snake_score_no_cases = Vec::new();
-            snake_score_no_cases.resize(num_ciphers + 1, 0);
+            let mut snake_score_no_cases = vec![0; num_ciphers + 1];
             for i in 0..number_max + 1 {
+                #[allow(clippy::needless_range_loop)]
                 for j in 0..num_ciphers {
                     chars[j] = (i >> (4 * j)) & 0xf;
                 }
                 let mut snake_score_no_case = 0;
                 let mut number_of_letters = 0;
+                #[allow(clippy::needless_range_loop)]
                 for j in 0..num_ciphers {
                     if chars[j] >= 10 {
                         number_of_letters += 1;
@@ -602,7 +601,7 @@ mod tests {
                 letters[number_of_letters] += 1;
                 total += 1;
                 for j in 0..num_ciphers {
-                    if j > 0 && chars[j as usize] == chars[j as usize - 1] {
+                    if j > 0 && chars[j] == chars[j - 1] {
                         snake_score_no_case += 1;
                     }
                 }

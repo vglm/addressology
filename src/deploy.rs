@@ -102,7 +102,7 @@ pub async fn handle_fancy_deploy(
         .await
         .map_err(|e| err_custom_create!("Failed to wait for command: {}", e))?;
     let output_str = String::from_utf8_lossy(&output.stdout);
-    log::info!("Command output: {}", output_str.to_string());
+    log::info!("Command output: {}", output_str);
     if output.status.success() {
         let mut new_contract = contract.clone();
         new_contract.deployed = Some(chrono::Utc::now().naive_utc());
