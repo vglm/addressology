@@ -40,7 +40,7 @@ jobs:
           DATABASE_URL: postgres://addresser_user:addresser_pass@127.0.0.1:5432/addresser_db
 
       - name: Auto update dev
-        if: github.event_name == 'push' && github.ref == 'refs/heads/postgres'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           curl -i -H "Update-Secret:${{ secrets.UPDATE_SECRET }}" -X POST -F file=@target/release/addresser https://addressology.net/service/update
           
