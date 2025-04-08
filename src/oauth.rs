@@ -11,16 +11,31 @@ use crate::db::utils::get_current_utc_time;
 use crate::err_custom_create;
 use crate::error::AddressologyError;
 use dotenvy::var;
-use oauth2::reqwest::async_http_client;
+use oauth2::basic::{
+    BasicRevocationErrorResponse, BasicTokenIntrospectionResponse, BasicTokenResponse,
+};
 use oauth2::{
     basic::BasicClient, AuthUrl, AuthorizationCode, ClientId, ClientSecret, CsrfToken,
-    PkceCodeChallenge, PkceCodeVerifier, RedirectUrl, RequestTokenError, RevocationUrl, Scope,
-    TokenResponse, TokenUrl,
+    EndpointNotSet, EndpointSet, PkceCodeChallenge, PkceCodeVerifier, RedirectUrl,
+    RequestTokenError, RevocationUrl, Scope, StandardRevocableToken, TokenResponse, TokenUrl,
 };
 use serde::Deserialize;
 use sqlx::PgPool;
 
-fn get_client(hostname: String) -> Result<BasicClient, AddressologyError> {
+type MyBasicClient = oauth2::Client<
+    oauth2::basic::BasicErrorResponse,
+    BasicTokenResponse,
+    BasicTokenIntrospectionResponse,
+    StandardRevocableToken,
+    BasicRevocationErrorResponse,
+    EndpointSet,
+    EndpointNotSet,
+    EndpointNotSet,
+    EndpointSet,
+    EndpointSet,
+>;
+
+fn get_client(hostname: String) -> Result<MyBasicClient, AddressologyError> {
     let google_client_id = ClientId::new(var("GOOGLE_CLIENT_ID").unwrap());
     let google_client_secret = ClientSecret::new(var("GOOGLE_CLIENT_SECRET").unwrap());
     let auth_url = AuthUrl::new("https://accounts.google.com/o/oauth2/auth".to_string()).unwrap();
@@ -34,21 +49,18 @@ fn get_client(hostname: String) -> Result<BasicClient, AddressologyError> {
 
     let redirect_url = format!("{}://{}/api/auth/callback/google", protocol, hostname);
 
-    // Set up the config for the Google OAuth2 process.
-    let client = BasicClient::new(
-        google_client_id,
-        Some(google_client_secret),
-        auth_url,
-        Some(token_url),
-    )
-    .set_redirect_uri(
-        RedirectUrl::new(redirect_url)
-            .map_err(|_| err_custom_create!("OAuth: invalid redirect URL"))?,
-    )
-    .set_revocation_uri(
-        RevocationUrl::new("https://oauth2.googleapis.com/revoke".to_string())
-            .map_err(|_| err_custom_create!("OAuth: invalid revocation endpoint URL"))?,
-    );
+    let client = BasicClient::new(google_client_id)
+        .set_client_secret(google_client_secret)
+        .set_auth_uri(auth_url)
+        .set_token_uri(token_url)
+        .set_redirect_uri(
+            RedirectUrl::new(redirect_url)
+                .map_err(|_| err_custom_create!("OAuth: invalid redirect URL"))?,
+        )
+        .set_revocation_url(
+            RevocationUrl::new("https://oauth2.googleapis.com/revoke".to_string())
+                .map_err(|_| err_custom_create!("OAuth: invalid revocation endpoint URL"))?,
+        );
     Ok(client)
 }
 
@@ -137,7 +149,7 @@ pub async fn oauth_challenge_and_get_token(
     let token_response = client
         .exchange_code(code)
         .set_pkce_verifier(PkceCodeVerifier::new(verifier))
-        .request_async(async_http_client)
+        .request_async(&reqwest::Client::new())
         .await
         .map_err(|err| {
             match err {

@@ -32,8 +32,8 @@ pub async fn handle_login(
     }
 
     // Generate a random number between 300 and 500 (in milliseconds)
-    let mut rng = rand::thread_rng();
-    let random_duration = rng.gen_range(300..=600);
+    let mut rng = rand::rng();
+    let random_duration = rng.random_range(300..=600);
     tokio::time::sleep(Duration::from_millis(random_duration)).await;
 
     if !ALLOWED_EMAILS.contains(&email) {

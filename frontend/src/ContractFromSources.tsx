@@ -113,7 +113,7 @@ const ContractFromSources = () => {
                 }}
             >
                 <div>
-                    <h2>Contract from source code</h2>
+                    <h2>Compile contract from single file source code</h2>
                     <div className={"source-code"}>
                         <Editor
                             value={code}

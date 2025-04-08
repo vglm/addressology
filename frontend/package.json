@@ -21,7 +21,8 @@
         "react-router": "^6.3",
         "react-router-dom": "^6.3",
         "react-simple-code-editor": "^0.14.1",
-        "react-use-websocket": "^4.5.0"
+        "react-use-websocket": "^4.5.0",
+        "react18-json-view": "^0.2.9"
     },
     "devDependencies": {
         "@types/jest": "^28.1",

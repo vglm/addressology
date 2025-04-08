@@ -68,11 +68,11 @@ pub async fn handle_password_reset(
         return HttpResponse::BadRequest().body("Reset token already sent, wait at least a minute");
     }
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let mut str = "reset".to_string();
     for _ in 0..16 {
         //gen hex character
-        let num = format!("{:x}", rng.gen_range(0..16));
+        let num = format!("{:x}", rng.random_range(0..16));
         str.push_str(&num.to_string());
     }
 

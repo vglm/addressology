@@ -55,8 +55,8 @@ pub async fn handle_password_set(
         return HttpResponse::Unauthorized().body("This email is not allowed");
     }
     // Simulate a small delay for security reasons (to prevent timing attacks)
-    let mut rng = rand::thread_rng();
-    let random_duration = rng.gen_range(300..=600);
+    let mut rng = rand::rng();
+    let random_duration = rng.random_range(300..=600);
     tokio::time::sleep(Duration::from_millis(random_duration)).await;
 
     let db_conn = data.db_connection.lock().await;

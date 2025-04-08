@@ -17,7 +17,7 @@ use crate::types::DbAddress;
 use crate::{login_check_and_get, ServerData};
 use actix_session::Session;
 use actix_web::{web, HttpRequest, HttpResponse};
-use rand::prelude::SliceRandom;
+use rand::prelude::IndexedRandom;
 use serde::{Deserialize, Serialize};
 use std::cmp::PartialEq;
 
@@ -42,7 +42,7 @@ pub async fn handle_random(
     )
     .await
     .unwrap();
-    let random = list.choose(&mut rand::thread_rng()).unwrap();
+    let random = list.choose(&mut rand::rng()).unwrap();
 
     Ok(HttpResponse::Ok().json(random))
 }

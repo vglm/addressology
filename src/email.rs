@@ -15,10 +15,10 @@ fn send_email_blocking(email: Email) {
 
     let message_encrypted_payload = email.message;
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let mut str = String::new();
     for _ in 0..10 {
-        let num = rng.gen_range(0..10);
+        let num = rng.random_range(0..10);
         str.push_str(&num.to_string());
     }
 
