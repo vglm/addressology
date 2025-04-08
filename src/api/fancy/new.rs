@@ -62,14 +62,17 @@ async fn _handle_fancy_new_with_trans(
             Ok(factory) => factory,
             Err(e) => {
                 log::error!("{}", e);
-                return FancyNewResult::Error(HttpResponse::BadRequest().finish());
+                return FancyNewResult::ParseError(format!(
+                    "Failed to parse factory address {}",
+                    new_data.factory
+                ));
             }
         };
         let fancy = match parse_fancy(new_data.salt.clone(), factory) {
             Ok(fancy) => fancy,
             Err(e) => {
                 log::error!("{}", e);
-                return FancyNewResult::Error(HttpResponse::InternalServerError().finish());
+                return FancyNewResult::ParseError(format!("parse fancy failed {}", e));
             }
         };
         match get_or_insert_factory(db_trans, DbAddress::from_h160(factory)).await {
