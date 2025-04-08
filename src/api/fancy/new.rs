@@ -16,7 +16,7 @@ use std::str::FromStr;
 pub struct AddNewData {
     pub salt: String,
     pub factory: String,
-    pub address: String,
+    pub address: Option<String>,
     pub job_id: Option<String>,
 }
 
@@ -25,7 +25,7 @@ pub struct AddNewData {
 pub struct AddNewDataEntry {
     pub salt: String,
     pub factory: String,
-    pub address: String,
+    pub address: Option<String>,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -125,12 +125,14 @@ async fn _handle_fancy_new_with_trans(
     }
 
     let gen_address = format!("{:#x}", result.address.addr());
-    if gen_address != new_data.address.to_lowercase() {
-        return FancyNewResult::ParseError(format!(
-            "Address mismatch expected: {}, got: {}",
-            gen_address,
-            new_data.address.to_lowercase()
-        ));
+    if let Some(reference_address) = new_data.address.as_ref().map(|a| a.to_lowercase()) {
+        if gen_address != reference_address {
+            return FancyNewResult::ParseError(format!(
+                "Address mismatch expected: {}, got: {}",
+                gen_address,
+                reference_address.to_lowercase()
+            ));
+        }
     }
     let score = result.score;
 
