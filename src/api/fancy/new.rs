@@ -17,7 +17,7 @@ use uuid::Uuid;
 pub struct AddNewData {
     pub salt: String,
     pub factory: String,
-    pub address: String,
+    pub address: Option<String>,
     pub job_id: Option<Uuid>,
 }
 

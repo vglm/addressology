@@ -11,7 +11,6 @@ use actix_session::Session;
 use actix_web::{web, HttpRequest, HttpResponse};
 use chrono::NaiveDateTime;
 
-use rand::{rng, RngCore};
 use serde::{Deserialize, Serialize};
 use sqlx::types::Uuid;
 use std::cmp::PartialEq;
