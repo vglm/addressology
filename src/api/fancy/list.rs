@@ -42,7 +42,13 @@ pub async fn handle_list(
     };
 
     let public_key_base = match public_key_base {
-        Some(base) => PublicKeyFilter::Selected(base),
+        Some(base) => {
+            if base == "all" {
+                PublicKeyFilter::All
+            } else {
+                PublicKeyFilter::Selected(base)
+            }
+        }
         None => PublicKeyFilter::OnlyNull,
     };
 
