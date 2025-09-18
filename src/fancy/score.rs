@@ -174,6 +174,7 @@ pub fn exactly_letters_combinations(letters: u64, total: u64) -> f64 {
     if letters == total {
         return 6.0f64.powf(letters as f64);
     }
+
     6.0f64.powf(letters as f64)
         * combinations(total as i64, total as i64 - letters as i64)
         * 10f64.powf((total - letters) as f64)
