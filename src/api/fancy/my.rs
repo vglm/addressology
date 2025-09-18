@@ -56,6 +56,7 @@ pub async fn handle_my_list(
         FancyOrderBy::Score,
         ReservedStatus::User(user.uid),
         None,
+        None,
         PublicKeyFilter::OnlyNull,
         100000000,
     )

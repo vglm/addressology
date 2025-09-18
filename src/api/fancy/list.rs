@@ -18,6 +18,7 @@ pub async fn handle_list(
     if category == Some("all".to_string()) {
         category = None
     }
+    let provider_id = extract_url_param(&request, "provider_id")?;
     let free = extract_url_param(&request, "free")?;
     let reserved_status = match free.unwrap_or("free".to_string()).as_str() {
         "mine" => {
@@ -51,6 +52,7 @@ pub async fn handle_list(
         order,
         reserved_status,
         since,
+        provider_id,
         public_key_base,
         limit.unwrap_or(100),
     )

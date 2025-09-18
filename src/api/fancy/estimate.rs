@@ -10,6 +10,7 @@ pub async fn handle_fancy_estimate_total_hash(
 ) -> Result<HttpResponse, actix_web::Error> {
     let since = extract_url_date_param(&request, "since")?;
     let public_key_base = extract_url_param(&request, "public_key_base")?;
+    let provider_id = extract_url_param(&request, "provider_id")?;
     let public_key_base_filter = match public_key_base {
         Some(base) => PublicKeyFilter::Selected(base),
         None => PublicKeyFilter::All,
@@ -22,6 +23,7 @@ pub async fn handle_fancy_estimate_total_hash(
             FancyOrderBy::Score,
             ReservedStatus::All,
             since,
+            provider_id,
             public_key_base_filter,
             100000000,
         )

@@ -446,13 +446,10 @@ async fn main() -> std::io::Result<()> {
                                 addr,
                                 expected
                             );
-                            Err(std::io::Error::new(
-                                std::io::ErrorKind::Other,
-                                format!(
-                                    "Computed address: {} does not match expected: {}",
-                                    addr, expected
-                                ),
-                            ))
+                            Err(std::io::Error::other(format!(
+                                "Computed address: {} does not match expected: {}",
+                                addr, expected
+                            )))
                         } else {
                             log::info!("Computed address: {} matches expected", addr);
                             Ok(())

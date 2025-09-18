@@ -37,6 +37,7 @@ pub async fn handle_random(
         FancyOrderBy::Score,
         ReservedStatus::NotReserved,
         None,
+        None,
         PublicKeyFilter::OnlyNull,
         1000,
     )

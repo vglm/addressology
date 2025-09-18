@@ -139,12 +139,14 @@ pub async fn get_or_insert_factory(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn fancy_list<'c, E>(
     conn: E,
     category: Option<String>,
     order_by: FancyOrderBy,
     reserved: ReservedStatus,
     since: Option<NaiveDateTime>,
+    provider_id: Option<String>,
     public_key_base: PublicKeyFilter,
     limit: i64,
 ) -> Result<Vec<FancyProviderDbObj>, sqlx::Error>
@@ -179,11 +181,17 @@ where
         None => "".to_string(),
     };
 
+    let provider_condition = match provider_id {
+        Some(pid) => format!("mi.prov_node_id = '{}'", pid),
+        None => "".to_string(),
+    };
+
     let where_clause = [
         owner_condition,
         public_key_base_condition,
         category_condition,
         created_condition,
+        provider_condition,
     ]
     .into_iter()
     .filter(|x| !x.is_empty())
