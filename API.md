@@ -82,7 +82,7 @@ Google OAuth callback endpoint.
 - Query params:
   - `code`
   - `state`
-- Validates the OAuth stage, exchanges the code, verifies the Google token, loads the user, and stores the session
+- Validates the stored OAuth state record, exchanges the code, verifies the Google token, loads the user, and stores the session
 - Redirects to `/dashboard/` on success
 - Returns `400` for missing/invalid callback parameters
 - Returns `401` when the email is not allowed
