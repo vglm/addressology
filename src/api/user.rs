@@ -23,6 +23,7 @@ pub use logout::*;
 pub use reset_pass::*;
 pub use set_pass::*;
 
+#[allow(dead_code)] // referenced lazily; unused under some feature sets
 fn get_allowed_emails() -> Vec<String> {
     let res = env::var("ALLOWED_EMAILS")
         .unwrap_or("sieciech.czajka@golem.network".to_string())
@@ -33,6 +34,7 @@ fn get_allowed_emails() -> Vec<String> {
     res
 }
 
+#[allow(dead_code)] // referenced lazily; unused under some feature sets
 fn get_domain() -> String {
     let res = env::var("WEB_PORTAL_DOMAIN").unwrap_or("localhost".to_string());
 

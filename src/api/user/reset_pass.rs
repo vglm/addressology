@@ -91,7 +91,7 @@ pub async fn handle_password_reset(
             "Hello, you have requested a password reset. \nPlease click on the following link to reset your password: \nhttps://{}/dashboard/login?reset_token={}&email={}",
             WEB_PORTAL_DOMAIN.as_str(),
             str,
-            &email_encoded
+            email_encoded
         ),
     }).await;
     HttpResponse::Ok().body("Reset link sent")
