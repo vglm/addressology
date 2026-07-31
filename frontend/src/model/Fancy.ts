@@ -41,9 +41,33 @@ export interface Fancy {
     category: string;
     created: string;
     job: string | null;
+    publicKeyBase: string | null;
     provName: string;
     provNodeId: string;
     provRewardAddr: string;
+}
+
+export interface FancySearchResponse {
+    entries: Fancy[];
+    total: number;
+    totalCapped: boolean;
+    limit: number;
+    offset: number;
+}
+
+export interface FancyCategoryStat {
+    category: string;
+    total: number;
+    free: number;
+    newest: string | null;
+}
+
+export interface FancyStats {
+    total: number;
+    free: number;
+    newest: string | null;
+    estimatedWorkTh: number;
+    categories: FancyCategoryStat[];
 }
 
 export interface UserTokenResponse {

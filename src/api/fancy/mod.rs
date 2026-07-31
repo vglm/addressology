@@ -6,6 +6,7 @@ pub mod list;
 pub mod my;
 pub mod new;
 pub mod score;
+pub mod search;
 pub mod tokens;
 
 use crate::api::utils::extract_url_param;

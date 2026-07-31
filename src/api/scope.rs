@@ -7,6 +7,7 @@ use crate::api::fancy::list::handle_list;
 use crate::api::fancy::my::handle_my_list;
 use crate::api::fancy::new::handle_fancy_new_many;
 use crate::api::fancy::score::{handle_get_score_categories, handle_score_custom};
+use crate::api::fancy::search::{handle_search, handle_stats};
 use crate::api::fancy::tokens::handle_get_user_tokens;
 use crate::api::fancy::{handle_public_key_list, handle_random};
 use crate::api::oauth::google::{handle_google_callback, handle_login_via_google};
@@ -34,6 +35,8 @@ pub fn server_api_scope() -> Scope {
     .route("/fancy/random",                 get().to(handle_random))
     .route("/fancy/total_hash",             get().to(handle_fancy_estimate_total_hash))
     .route("/fancy/list",                   get().to(handle_list))
+    .route("/fancy/search",                 get().to(handle_search))
+    .route("/fancy/stats",                  get().to(handle_stats))
     .route("/fancy/mylist",                 get().to(handle_my_list))
     .route("/fancy/new_many",               post().to(handle_fancy_new_many))
     .route("/fancy/new_many2",              post().to(handle_fancy_new_many))

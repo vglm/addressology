@@ -109,6 +109,15 @@ pub struct FancyProviderDbObj {
     pub prov_reward_addr: Option<DbAddress>,
 }
 
+#[derive(Serialize, Deserialize, sqlx::FromRow, PartialEq, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct FancyCategoryStatDbObj {
+    pub category: String,
+    pub total: i64,
+    pub free: i64,
+    pub newest: Option<NaiveDateTime>,
+}
+
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ContractCreateFromApi {

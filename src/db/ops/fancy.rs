@@ -1,12 +1,12 @@
 use crate::db::model::{
-    ContractFactoryDbObject, FancyDbObj, FancyProviderDbObj, JobDbObj, JobMinerDbReadObj,
-    MinerDbObj, PublicKeyBaseDbObject,
+    ContractFactoryDbObject, FancyCategoryStatDbObj, FancyDbObj, FancyProviderDbObj, JobDbObj,
+    JobMinerDbReadObj, MinerDbObj, PublicKeyBaseDbObject,
 };
 use crate::db::utils::get_min_time;
 use crate::types::DbAddress;
 use chrono::{NaiveDateTime, Utc};
 use sqlx::types::Uuid;
-use sqlx::{Executor, PgPool, Postgres, Transaction};
+use sqlx::{Executor, PgPool, Postgres, QueryBuilder, Transaction};
 
 pub async fn insert_fancy_obj<'c, E>(
     conn: E,
@@ -139,6 +139,192 @@ pub async fn get_or_insert_factory(
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PatternMode {
+    Prefix,
+    Contains,
+    Suffix,
+}
+
+pub struct FancySearchParams {
+    /// Lowercase hex digits only (without 0x prefix), pre-validated by the caller.
+    pub pattern: Option<String>,
+    pub pattern_mode: PatternMode,
+    pub category: Option<String>,
+    pub order_by: FancyOrderBy,
+    pub order_ascending: bool,
+    pub reserved: ReservedStatus,
+    pub since: Option<NaiveDateTime>,
+    pub provider_id: Option<String>,
+    pub public_key_base: PublicKeyFilter,
+    pub limit: i64,
+    pub offset: i64,
+}
+
+pub struct FancySearchResult {
+    pub entries: Vec<FancyProviderDbObj>,
+    pub total: i64,
+    pub total_capped: bool,
+}
+
+/// Highest exact total reported for pattern searches; above this the count is reported as capped.
+const SEARCH_COUNT_CAP: i64 = 100_000;
+
+fn push_fancy_conditions(builder: &mut QueryBuilder<'_, Postgres>, params: &FancySearchParams) {
+    builder.push(" WHERE 1=1");
+    match &params.reserved {
+        ReservedStatus::All => {}
+        ReservedStatus::Reserved => {
+            builder.push(" AND f.owner_id is NOT NULL");
+        }
+        ReservedStatus::NotReserved => {
+            builder.push(" AND f.owner_id is NULL");
+        }
+        ReservedStatus::User(user) => {
+            builder.push(" AND f.owner_id = ");
+            builder.push_bind(*user);
+        }
+    }
+    match &params.public_key_base {
+        PublicKeyFilter::All => {}
+        PublicKeyFilter::Selected(pk) => {
+            builder.push(" AND f.public_key_base = ");
+            builder.push_bind(pk.clone());
+        }
+        PublicKeyFilter::OnlyNull => {
+            builder.push(" AND f.public_key_base is NULL");
+        }
+    }
+    if let Some(category) = &params.category {
+        builder.push(" AND f.category = ");
+        builder.push_bind(category.clone());
+    }
+    if let Some(since) = &params.since {
+        builder.push(" AND f.created > ");
+        builder.push_bind(*since);
+    }
+    if let Some(pattern) = &params.pattern {
+        let like = match params.pattern_mode {
+            PatternMode::Prefix => format!("0x{}%", pattern),
+            PatternMode::Contains => format!("%{}%", pattern),
+            PatternMode::Suffix => format!("%{}", pattern),
+        };
+        builder.push(" AND f.address LIKE ");
+        builder.push_bind(like);
+    }
+    if let Some(provider_id) = &params.provider_id {
+        builder.push(" AND mi.prov_node_id = ");
+        builder.push_bind(provider_id.clone());
+    }
+}
+
+fn push_fancy_order(builder: &mut QueryBuilder<'_, Postgres>, params: &FancySearchParams) {
+    let column = match params.order_by {
+        FancyOrderBy::Score => "f.score",
+        FancyOrderBy::Created => "f.created",
+    };
+    let direction = if params.order_ascending {
+        "ASC"
+    } else {
+        "DESC"
+    };
+    builder.push(format!(" ORDER BY {} {}", column, direction));
+}
+
+const FANCY_JOINS: &str = " FROM fancy as f LEFT JOIN job_info as ji ON f.job_id=ji.uid LEFT JOIN miner_info as mi ON mi.uid=ji.miner";
+
+async fn fancy_query_page<'c, E>(
+    conn: E,
+    params: &FancySearchParams,
+) -> Result<Vec<FancyProviderDbObj>, sqlx::Error>
+where
+    E: Executor<'c, Database = Postgres>,
+{
+    let mut builder = QueryBuilder::<Postgres>::new(
+        "SELECT f.*, mi.prov_name, mi.prov_node_id, mi.prov_reward_addr",
+    );
+    builder.push(FANCY_JOINS);
+    push_fancy_conditions(&mut builder, params);
+    push_fancy_order(&mut builder, params);
+    if params.limit > 0 {
+        builder.push(" LIMIT ");
+        builder.push_bind(params.limit);
+    }
+    if params.offset > 0 {
+        builder.push(" OFFSET ");
+        builder.push_bind(params.offset);
+    }
+    builder
+        .build_query_as::<FancyProviderDbObj>()
+        .fetch_all(conn)
+        .await
+}
+
+pub async fn fancy_search(
+    conn: &PgPool,
+    params: &FancySearchParams,
+) -> Result<FancySearchResult, sqlx::Error> {
+    let mut count_builder = QueryBuilder::<Postgres>::new("SELECT count(*)");
+    if params.pattern.is_some() {
+        // Counting arbitrary pattern matches can touch a large part of the table,
+        // so give up on exactness above the cap to keep the query bounded.
+        count_builder = QueryBuilder::<Postgres>::new("SELECT count(*) FROM (SELECT 1");
+    }
+    if params.provider_id.is_some() {
+        count_builder.push(FANCY_JOINS);
+    } else {
+        count_builder.push(" FROM fancy as f");
+    }
+    push_fancy_conditions(&mut count_builder, params);
+    if params.pattern.is_some() {
+        count_builder.push(" LIMIT ");
+        count_builder.push_bind(SEARCH_COUNT_CAP + 1);
+        count_builder.push(") as capped");
+    }
+    let total = count_builder
+        .build_query_scalar::<i64>()
+        .fetch_one(conn)
+        .await?;
+    let total_capped = params.pattern.is_some() && total > SEARCH_COUNT_CAP;
+    let total = if total_capped {
+        SEARCH_COUNT_CAP
+    } else {
+        total
+    };
+
+    let entries = if !total_capped && params.offset >= total {
+        vec![]
+    } else {
+        fancy_query_page(conn, params).await?
+    };
+
+    Ok(FancySearchResult {
+        entries,
+        total,
+        total_capped,
+    })
+}
+
+pub async fn fancy_stats(conn: &PgPool) -> Result<Vec<FancyCategoryStatDbObj>, sqlx::Error> {
+    sqlx::query_as::<_, FancyCategoryStatDbObj>(
+        r"SELECT category,
+                 count(*) as total,
+                 count(*) FILTER (WHERE owner_id is NULL) as free,
+                 max(created) as newest
+          FROM fancy GROUP BY category ORDER BY total DESC",
+    )
+    .fetch_all(conn)
+    .await
+}
+
+pub async fn fancy_estimated_work_events(conn: &PgPool) -> Result<i64, sqlx::Error> {
+    sqlx::query_scalar::<_, i64>(
+        r"SELECT count(*) FROM fancy WHERE category = 'leading_zeroes' AND score > 1e11",
+    )
+    .fetch_one(conn)
+    .await
+}
+
 #[allow(clippy::too_many_arguments)]
 pub async fn fancy_list<'c, E>(
     conn: E,
@@ -153,72 +339,20 @@ pub async fn fancy_list<'c, E>(
 where
     E: Executor<'c, Database = Postgres>,
 {
-    let order_by = match order_by {
-        FancyOrderBy::Score => "score",
-        FancyOrderBy::Created => "created",
+    let params = FancySearchParams {
+        pattern: None,
+        pattern_mode: PatternMode::Prefix,
+        category,
+        order_by,
+        order_ascending: false,
+        reserved,
+        since,
+        provider_id,
+        public_key_base,
+        limit,
+        offset: 0,
     };
-
-    let owner_condition = match reserved {
-        ReservedStatus::All => "".to_string(),
-        ReservedStatus::Reserved => "f.owner_id is NOT NULL".to_string(),
-        ReservedStatus::NotReserved => "f.owner_id is NULL".to_string(),
-        ReservedStatus::User(user) => format!("f.owner_id = '{}'", user).to_string(),
-    };
-
-    let public_key_base_condition = match public_key_base {
-        PublicKeyFilter::All => "".to_string(),
-        PublicKeyFilter::Selected(pk) => format!("f.public_key_base = '{}'", pk),
-        PublicKeyFilter::OnlyNull => "f.public_key_base is NULL".to_string(),
-    };
-
-    let created_condition = match since {
-        Some(since) => format!("f.created > '{}'", since.format("%Y-%m-%d %H:%M:%S")),
-        None => "".to_string(),
-    };
-
-    let category_condition = match category {
-        Some(cat) => format!("f.category = '{}'", cat),
-        None => "".to_string(),
-    };
-
-    let provider_condition = match provider_id {
-        Some(pid) => format!("mi.prov_node_id = '{}'", pid),
-        None => "".to_string(),
-    };
-
-    let where_clause = [
-        owner_condition,
-        public_key_base_condition,
-        category_condition,
-        created_condition,
-        provider_condition,
-    ]
-    .into_iter()
-    .filter(|x| !x.is_empty())
-    .collect::<Vec<_>>()
-    .join(" AND ");
-
-    let limit_clause = if limit > 0 {
-        format!("LIMIT {}", limit)
-    } else {
-        "".to_string()
-    };
-
-    let order_by_clause = format!("{} DESC", order_by);
-
-    let res = sqlx::query_as::<_, FancyProviderDbObj>(
-        format!(
-            r"SELECT f.*, mi.prov_name, mi.prov_node_id, mi.prov_reward_addr
-            FROM fancy as f LEFT JOIN job_info as ji ON f.job_id=ji.uid LEFT JOIN miner_info as mi ON mi.uid=ji.miner
-            WHERE {where_clause}
-            ORDER BY {order_by_clause}
-            {limit_clause}"
-        )
-        .as_str(),
-    )
-    .fetch_all(conn)
-    .await?;
-    Ok(res)
+    fancy_query_page(conn, &params).await
 }
 
 pub enum FancyJobOrderBy {

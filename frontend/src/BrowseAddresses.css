@@ -1,6 +1,371 @@
-.fancy-address-entry {
-    color: darkgoldenrod;
-    font-weight: bold;
-    letter-spacing: 1px;
+.browse-page {
+    max-width: 1400px;
+    padding-bottom: 40px;
+}
+
+.browse-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.browse-header h1 {
+    margin: 8px 0;
+}
+
+.browse-stats {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.stat-card {
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 8px 16px;
+    background: #fafafa;
+    min-width: 130px;
+}
+
+.stat-value {
+    font-size: 17px;
+    font-weight: 700;
+    color: #111827;
+    white-space: nowrap;
+}
+
+.stat-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #6b7280;
+    margin-top: 2px;
+    white-space: nowrap;
+}
+
+.browse-toolbar {
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 12px 16px 8px 16px;
+    background: #ffffff;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.toolbar-row {
+    display: flex;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.toolbar-spacer {
+    flex-grow: 1;
+}
+
+.search-input {
+    min-width: 340px;
+}
+
+.search-input-inner {
     font-family: Consolas, "Courier New", monospace;
+    letter-spacing: 1px;
+}
+
+.category-row {
+    gap: 6px;
+    align-items: center;
+}
+
+.cat-chip {
+    cursor: pointer;
+}
+
+.cat-chip .chip-count {
+    opacity: 0.6;
+    font-weight: 600;
+    font-size: 11px;
+}
+
+.cat-chip-selected {
+    background-color: #1d4ed8 !important;
+    color: #ffffff !important;
+}
+
+.cat-chip-selected .chip-count {
+    opacity: 0.8;
+}
+
+.selects-row {
+    align-items: center;
+    padding-bottom: 4px;
+}
+
+.select-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.select-label {
+    font-size: 12px;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.browse-result-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 14px 0 6px 0;
+}
+
+.result-count {
+    font-size: 15px;
+    font-weight: 700;
+    color: #111827;
+}
+
+.pagination {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.page-info {
+    font-size: 13px;
+    color: #6b7280;
+    margin-right: 8px;
+}
+
+.browse-progress {
+    margin-bottom: 4px;
+}
+
+.browse-error {
+    border: 1px solid #fecaca;
+    background: #fef2f2;
+    color: #991b1b;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 10px;
+}
+
+.browse-empty {
+    border: 1px dashed #d1d5db;
+    border-radius: 10px;
+    padding: 48px 20px;
+    text-align: center;
+    color: #6b7280;
+}
+
+.browse-empty-title {
+    font-size: 17px;
+    font-weight: 600;
+    margin-bottom: 14px;
+    color: #374151;
+}
+
+.browse-empty-hints {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.browse-table-wrap {
+    overflow-x: auto;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+}
+
+.browse-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.browse-table thead th {
+    position: sticky;
+    top: 0;
+    background: #f9fafb;
+    text-align: left;
+    padding: 8px 12px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #6b7280;
+    border-bottom: 1px solid #e5e7eb;
+    white-space: nowrap;
+    z-index: 1;
+}
+
+.browse-table tbody td {
+    padding: 6px 12px;
+    border-bottom: 1px solid #f3f4f6;
+    white-space: nowrap;
+}
+
+.browse-table tbody tr:hover {
+    background: #f8fafc;
+}
+
+.browse-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.addr-cell {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.addr-mono {
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+    color: #111827;
+}
+
+.addr-0x {
+    color: #9ca3af;
+}
+
+.addr-link {
+    text-decoration: none;
+}
+
+.addr-link:hover {
+    background: transparent;
+}
+
+.addr-link:hover .addr-mono {
+    text-decoration: underline;
+    text-decoration-color: #9ca3af;
+}
+
+.addr-match {
+    background: #fde68a;
+    color: #78350f;
+    border-radius: 3px;
+    padding: 0 1px;
+    font-weight: 700;
+}
+
+.copy-btn {
+    font-size: 14px !important;
+    color: #9ca3af !important;
+    padding: 2px 6px !important;
+}
+
+.copy-btn:hover {
+    color: #111827 !important;
+}
+
+.category-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    background: #f3f4f6;
+    color: #374151;
+    white-space: nowrap;
+}
+
+.category-tag[data-category="leading_zeroes"] {
+    background: #e8f0fe;
+    color: #1a56db;
+}
+
+.category-tag[data-category="short_leading_zeroes"] {
+    background: #e0f2f1;
+    color: #00695c;
+}
+
+.category-tag[data-category="leading_any"] {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.category-tag[data-category="short_leading_any"] {
+    background: #ffedd5;
+    color: #9a3412;
+}
+
+.category-tag[data-category="letters_heavy"] {
+    background: #ede9fe;
+    color: #5b21b6;
+}
+
+.category-tag[data-category="leading_pi"] {
+    background: #fce7f3;
+    color: #9d174d;
+}
+
+.category-tag[data-category="numbers_only"] {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.category-tag[data-category="snake_score_no_case"] {
+    background: #f1f5f9;
+    color: #334155;
+}
+
+.category-tag[data-category="snake_score_need_case"] {
+    background: #e2e8f0;
+    color: #1e293b;
+}
+
+.category-tag[data-category="snake_score_need_letters"] {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.category-tag[data-category="leading_letters"] {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.category-tag[data-category="pattern_score"] {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.num-cell {
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+}
+
+.browse-table thead th:nth-child(3),
+.browse-table thead th:nth-child(4),
+.browse-table thead th:nth-child(5),
+.browse-table thead th:nth-child(6) {
+    text-align: right;
+}
+
+.created-cell {
+    color: #374151;
+}
+
+.provider-link {
+    color: #2563eb;
+}
+
+.provider-none {
+    color: #9ca3af;
+}
+
+.browse-footer {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 10px;
 }
